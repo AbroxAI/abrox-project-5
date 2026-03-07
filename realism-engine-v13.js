@@ -1,4 +1,4 @@
-// realism-engine-v15-fixed.js
+// realism-engine-v15-fixed-extended.js — FINAL + AUTO-REPLY & PINNED CAPTIONS
 (function(){
 "use strict";
 
@@ -10,6 +10,8 @@ const MIN_INTERVAL = CFG.MIN_INTERVAL_MS || 20000;
 const MAX_INTERVAL = CFG.MAX_INTERVAL_MS || 60000;
 const REACTION_PROB = CFG.REACTION_PROB || 0.35;
 const TREND_PROB = CFG.TREND_SPIKE_PROB || 0.02;
+const AUTO_REPLY_PROB = CFG.AUTO_REPLY_PROB || 0.25;
+const PINNED_PROB = CFG.PINNED_PROB || 0.05;
 
 /* =====================================================
    DATA POOLS
@@ -60,9 +62,9 @@ function hash(str){let h=5381;for(let i=0;i<str.length;i++){h=((h<<5)+h)+str.cha
 function mark(text){const fp=hash(text.toLowerCase());if(GENERATED.has(fp)) return false;GENERATED.add(fp);QUEUE.push(fp);while(QUEUE.length>50000){GENERATED.delete(QUEUE.shift());}return true;}
 
 /* =====================================================
-   COMMENT GENERATOR WITH REACTIONS & TREND
+   COMMENT GENERATOR WITH AUTO-REPLY & PINNED CAPTION
 ===================================================== */
-function generateComment(){
+function generateComment(previousMessages=[]) {
     const templates=[
         ()=>`Guys ${random(TESTIMONIALS)}`,
         ()=>`Anyone trading ${random(ASSETS)} on ${random(BROKERS)}?`,
@@ -70,10 +72,22 @@ function generateComment(){
         ()=>`Closed ${random(ASSETS)} on ${random(TIMEFRAMES)} — ${random(RESULT_WORDS)}`,
         ()=>`Scalped ${random(ASSETS)} on ${random(BROKERS)} result ${random(RESULT_WORDS)}`
     ];
+    
     let text=random(templates)();
+
+    // Auto reply: 25% chance
+    let replyToId = null;
+    if (previousMessages.length && maybe(AUTO_REPLY_PROB)) {
+        const target = random(previousMessages);
+        replyToId = target.id;
+        text = `@${target.persona?.name||'User'} ${text}`;
+    }
+
+    // Optional extra commentary
     if(maybe(0.35)) text+=" "+random(["good execution","perfect timing","tight stop","no slippage","wide stop"]);
     if(maybe(0.45)) text+=" "+random(EMOJIS);
 
+    // Deduplicate
     let tries=0;
     while(!mark(text) && tries<20){text+=" "+rand(999);tries++;}
 
@@ -87,7 +101,13 @@ function generateComment(){
     // Trend flag
     const trending = maybe(TREND_PROB);
 
-    return {text,reactions,trending};
+    // Optional pinned caption
+    let caption = null;
+    if(maybe(PINNED_PROB)) {
+        caption = text + " (Pinned message)";
+    }
+
+    return {text, reactions, trending, replyToId, caption};
 }
 
 /* =====================================================
@@ -116,7 +136,9 @@ async function postMessage(item){
             type:"incoming",
             id:`real_${Date.now()}_${rand(9999)}`,
             reactions:item.reactions,
-            trending:item.trending
+            trending:item.trending,
+            replyToId:item.replyToId,
+            caption:item.caption
         }
     );
 }
@@ -125,9 +147,11 @@ async function postMessage(item){
    CROWD SIM
 ===================================================== */
 async function simulateCrowd(count=5){
+    const prevMessages = [];
     for(let i=0;i<count;i++){
-        const item=generateComment();
-        await postMessage(item);
+        const item = generateComment(prevMessages);
+        const msgId = await postMessage(item);
+        prevMessages.push({...item, id: msgId, persona: window.identity.getRandomPersona()});
         await new Promise(r=>setTimeout(r,400+Math.random()*800));
     }
 }
@@ -160,7 +184,7 @@ function simulate(){
 window.realism=window.realism||{};
 window.realism.simulate=simulate;
 window.realism.simulateCrowd=simulateCrowd;
-window.realism.generateReply=function(){return generateComment().text;};
+window.realism.generateReply=function(prevMessages){return generateComment(prevMessages).text;};
 window.realism.postFallbackReply=async function(){
     const text=random(["Nice one 🔥","Interesting","Exactly","Good point","Agreed"]);
     await postMessage({text,reactions:[],trending:false});
