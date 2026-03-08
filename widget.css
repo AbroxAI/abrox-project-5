@@ -1,5 +1,5 @@
 /* ===========================
-   Telegram 2026 Widget CSS — Ultra Realism
+   Telegram 2026 Widget CSS
 =========================== */
 
 /* ---------- Container ---------- */
@@ -10,32 +10,32 @@
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  background: #f8f9fa;
-  font-family: "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  gap: 8px;
+  background: #f5f5f5;
+  font-family: "Segoe UI", Roboto, sans-serif;
   scrollbar-width: thin;
-  scrollbar-color: #cfd3d7 transparent;
+  scrollbar-color: rgba(0,0,0,0.2) transparent;
 }
 
 .tg-comments-container::-webkit-scrollbar {
   width: 8px;
 }
 .tg-comments-container::-webkit-scrollbar-thumb {
-  background-color: #cfd3d7;
+  background: rgba(0,0,0,0.15);
   border-radius: 4px;
 }
 
 /* ---------- Bubbles ---------- */
 .tg-bubble {
   display: flex;
-  align-items: flex-start;
-  max-width: 70%;
+  align-items: flex-end;
+  max-width: 75%;
   position: relative;
-  padding: 12px 16px;
-  border-radius: 22px;
+  padding: 10px 14px;
+  border-radius: 20px;
   background: #ffffff;
-  box-shadow: 0 3px 6px rgba(0,0,0,0.06);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  transition: transform 0.2s ease, background 0.2s ease;
   word-break: break-word;
 }
 
@@ -54,20 +54,20 @@
 .tg-bubble.outgoing::after {
   content: '';
   position: absolute;
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
   bottom: 0;
-  border-radius: 4px;
+  border-radius: 3px;
   background: inherit;
 }
 
 .tg-bubble.incoming::after {
-  left: -8px;
+  left: -6px;
   transform: rotate(45deg);
 }
 
 .tg-bubble.outgoing::after {
-  right: -8px;
+  right: -6px;
   transform: rotate(45deg);
 }
 
@@ -77,13 +77,12 @@
   height: 42px;
   border-radius: 50%;
   object-fit: cover;
-  margin-right: 12px;
+  margin-right: 10px;
   flex-shrink: 0;
-  transition: transform 0.15s ease;
 }
 
 .tg-bubble.outgoing .tg-bubble-avatar {
-  margin-left: 12px;
+  margin-left: 10px;
   margin-right: 0;
 }
 
@@ -91,15 +90,14 @@
 .tg-bubble-content {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 /* ---------- Sender Name ---------- */
 .tg-bubble-sender {
   font-weight: 600;
   font-size: 13px;
-  color: #222;
-  line-height: 1.2;
+  color: #333;
 }
 
 /* ---------- Message Text ---------- */
@@ -107,7 +105,7 @@
   font-size: 14px;
   line-height: 1.5;
   color: #111;
-  white-space: pre-line;
+  white-space: pre-wrap;
   word-wrap: break-word;
 }
 
@@ -122,24 +120,23 @@
 .tg-date-sticker {
   align-self: center;
   background: #e0e0e0;
-  padding: 6px 14px;
-  border-radius: 16px;
+  padding: 4px 12px;
+  border-radius: 14px;
   font-size: 12px;
   font-weight: 500;
   color: #555;
-  margin: 16px 0;
+  margin: 12px 0;
 }
 
 /* ---------- Reaction Pill ---------- */
 .tg-reaction-pill {
   display: flex;
-  gap: 6px;
-  padding: 4px 10px;
-  background: #f1f3f5;
-  border-radius: 16px;
+  gap: 4px;
+  padding: 2px 8px;
+  background: #f0f0f0;
+  border-radius: 14px;
   font-size: 12px;
   margin-top: 6px;
-  flex-wrap: wrap;
 }
 
 .tg-reaction-item {
@@ -151,39 +148,38 @@
 /* ---------- Join Sticker ---------- */
 .tg-join-float {
   position: relative;
-  background: #e1f5fe;
-  color: #0277bd;
+  background: #e6f7ff;
+  color: #0059b3;
   font-weight: 600;
-  padding: 10px 16px;
-  border-radius: 18px;
+  padding: 6px 14px;
+  border-radius: 16px;
   font-size: 13px;
-  margin: 6px 0;
+  margin: 4px 0;
+  transition: transform 0.25s ease, opacity 0.25s ease;
   opacity: 0;
-  transform: translateY(-8px);
-  transition: transform 0.4s ease, opacity 0.4s ease;
 }
 
 .tg-join-float.show {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateY(-6px);
 }
 
 /* ---------- Pinned Banner ---------- */
 #tg-pin-banner {
   display: flex;
   align-items: center;
-  background: #e3f2fd;
-  border-left: 4px solid #1976d2;
-  padding: 12px 16px;
-  border-radius: 14px;
-  gap: 14px;
+  background: #e6f0ff;
+  border-left: 4px solid #3b82f6;
+  padding: 10px 14px;
+  border-radius: 12px;
+  gap: 12px;
   position: sticky;
   top: 0;
   z-index: 999;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   opacity: 0;
-  transform: translateY(-14px);
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transform: translateY(-10px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
 #tg-pin-banner.show {
@@ -199,73 +195,71 @@
 
 .pin-btn-container {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
 .pin-btn, .glass-btn {
   font-size: 12px;
   padding: 6px 12px;
-  border-radius: 18px;
+  border-radius: 16px;
   border: none;
   cursor: pointer;
-  background: #1976d2;
+  background: #3b82f6;
   color: white;
   font-weight: 600;
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition: transform 0.1s ease;
 }
 
 .pin-btn:hover, .glass-btn:hover {
   transform: scale(1.05);
-  background: #1565c0;
 }
 
 /* ---------- Input Bar ---------- */
 .tg-input-bar {
   display: flex;
-  gap: 10px;
-  padding: 10px 14px;
-  border-radius: 26px;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 24px;
   background: #ffffff;
-  box-shadow: 0 3px 6px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   position: sticky;
   bottom: 0;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .tg-input-bar input {
   flex: 1;
   border: none;
   outline: none;
-  border-radius: 22px;
-  padding: 10px 14px;
+  border-radius: 20px;
+  padding: 8px 12px;
   font-size: 14px;
 }
 
 .tg-input-bar button {
   border: none;
-  background: #1976d2;
+  background: #3b82f6;
   color: white;
   font-weight: 600;
-  padding: 8px 16px;
-  border-radius: 22px;
+  padding: 6px 14px;
+  border-radius: 20px;
   cursor: pointer;
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition: transform 0.1s ease;
 }
 
 .tg-input-bar button:hover {
   transform: scale(1.05);
-  background: #1565c0;
 }
 
 /* ---------- Highlight Animation ---------- */
 .tg-highlight {
-  background-color: rgba(255,229,100,0.35);
+  background-color: rgba(255,229,100,0.3);
   border-radius: 18px;
   animation: tgFadePulse 2.6s ease-out forwards;
 }
 
 @keyframes tgFadePulse {
-  0% { opacity:1; transform: scale(1.03); }
+  0% { opacity:1; transform: scale(1.02); }
   20% { opacity:1; transform: scale(1); }
   100% { opacity:0; transform: scale(1); }
 }
