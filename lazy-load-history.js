@@ -1,90 +1,141 @@
-// history-loader-fixed.js — lazy history loader + chunked + correct dates + recent-first typing
+// history-loader-realistic-dayflow-typing.js — Realistic day flow + persona typing variation
 (function(){
 "use strict";
 
-const HISTORY_CHUNK_SIZE = 50; // number of messages to load per batch
-const LOAD_DELAY = 120; // ms between message render to simulate typing
+/* =====================================================
+   CONFIGURATION
+===================================================== */
+const CHUNK_SIZE = 30;        
+const LOAD_DELAY = 120;       
+const MESSAGE_POOL = window.HISTORY_POOL || [];
+const MIN_MESSAGES_QUIET = 1;
+const MAX_MESSAGES_QUIET = 5;
+const MIN_MESSAGES_BUSY = 40;
+const MAX_MESSAGES_BUSY = 100;
+const TYPING_SPEED = { slow: 350, normal: 220, fast: 140 };
 
-let historyQueue = []; // full 10k messages
-let historyIndex = 0; // next message to load
+/* =====================================================
+   UTIL
+===================================================== */
+function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function rand(min,max){ return Math.floor(Math.random()*(max-min)+min); }
 
-function sortByTimestamp(messages){
-  return messages.sort((a,b)=>new Date(a.timestamp) - new Date(b.timestamp));
+/* =====================================================
+   GROUP BY DATE
+===================================================== */
+function groupByDate(messages){
+  const grouped = {};
+  messages.forEach(msg=>{
+    const d = new Date(msg.timestamp);
+    const dateKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    if(!grouped[dateKey]) grouped[dateKey] = [];
+    grouped[dateKey].push(msg);
+  });
+  return grouped;
 }
 
-// initialize the history queue
-window.initHistoryLoader = function(messages){
-  if(!Array.isArray(messages)) return;
-  historyQueue = sortByTimestamp(messages); // oldest -> newest
-  historyIndex = historyQueue.length; // start loading from the end
-  console.log(`🗂 History loader initialized: ${historyQueue.length} messages`);
+/* =====================================================
+   SPLIT DAY INTO PERIODS
+===================================================== */
+function splitDayPeriods(messages){
+  const periods = { morning:[], afternoon:[], evening:[] };
+  messages.forEach(msg=>{
+    const hour = new Date(msg.timestamp).getHours();
+    if(hour<12) periods.morning.push(msg);
+    else if(hour<18) periods.afternoon.push(msg);
+    else periods.evening.push(msg);
+  });
+  return periods;
 }
 
-// load next chunk from history
-async function loadNextChunk(){
-  if(historyIndex <= 0) return;
+/* =====================================================
+   PICK MESSAGES PER PERIOD
+===================================================== */
+function pickPeriodMessages(periodMsgs){
+  const count = periodMsgs.length > 10
+    ? rand(MIN_MESSAGES_BUSY, Math.min(MAX_MESSAGES_BUSY, periodMsgs.length))
+    : rand(MIN_MESSAGES_QUIET, Math.min(MAX_MESSAGES_QUIET, periodMsgs.length));
+  return periodMsgs.slice(0,count);
+}
 
-  const chunkStart = Math.max(0, historyIndex - HISTORY_CHUNK_SIZE);
-  const chunk = historyQueue.slice(chunkStart, historyIndex);
-  historyIndex = chunkStart;
+/* =====================================================
+   ASSIGN PERSONA TYPING SPEED
+===================================================== */
+function assignTypingSpeed(persona){
+  if(persona.typingSpeed) return; // already assigned
+  const type = ["slow","normal","fast"][rand(0,3)];
+  persona.typingSpeed = TYPING_SPEED[type] + rand(-20,20); // add small randomness
+}
 
-  // render each message with delay to simulate typing
-  for(const msg of chunk){
-    if(!msg.persona) msg.persona = {name:"User", avatar:null};
-    window.TGRenderer.appendMessage(msg.persona,msg.text,{
-      id: msg.id,
+/* =====================================================
+   LOAD MESSAGE CHUNK
+===================================================== */
+async function loadChunk(messages){
+  for(const msg of messages){
+    const persona = msg.persona || { name: msg.name || 'User', avatar: msg.avatar || null };
+    const text = msg.text || '';
+    const opts = {
+      type: msg.type || 'incoming',
       timestamp: new Date(msg.timestamp),
-      type: msg.type || "incoming",
-      reactions: msg.reactions || [],
       replyToId: msg.replyToId || null,
       replyToText: msg.replyToText || null,
+      image: msg.image || null,
       caption: msg.caption || null,
-      image: msg.image || null
-    });
+      reactions: msg.reactions || []
+    };
+
+    if(opts.type === 'incoming'){
+      assignTypingSpeed(persona);
+      await window.queuedTyping(persona,text);
+    }
+
+    window.TGRenderer.appendMessage(persona,text,opts);
     await delay(LOAD_DELAY);
   }
 }
 
-// start loading history in background
-window.startHistoryLoader = async function(){
-  while(historyIndex > 0){
-    await loadNextChunk();
-    await delay(200); // small delay between chunks
+/* =====================================================
+   LOAD FULL HISTORY
+===================================================== */
+async function loadHistory(pool){
+  if(!window.TGRenderer) return console.warn("TGRenderer not ready");
+
+  const sorted = pool.slice().sort((a,b)=>new Date(a.timestamp) - new Date(b.timestamp));
+  const grouped = groupByDate(sorted);
+  const dateKeys = Object.keys(grouped).sort((a,b)=>new Date(a) - new Date(b));
+
+  for(const key of dateKeys){
+    const dayMessages = grouped[key];
+    const periods = splitDayPeriods(dayMessages);
+
+    for(const period of ["morning","afternoon","evening"]){
+      const msgs = pickPeriodMessages(periods[period]);
+      for(let i=0;i<msgs.length;i+=CHUNK_SIZE){
+        const chunk = msgs.slice(i,i+CHUNK_SIZE);
+        await loadChunk(chunk);
+      }
+    }
   }
-  console.log("✅ History fully loaded");
+
+  console.log("✅ Full realistic history loaded with persona typing variation");
 }
 
-// simulate typing indicator for recent messages
-window.simulateRecentTyping = async function(recentMessages){
-  if(!Array.isArray(recentMessages)) return;
-
-  for(const msg of recentMessages){
-    if(!msg.persona) msg.persona = {name:"User", avatar:null};
-    await window.queuedTyping(msg.persona,msg.text);
-    window.TGRenderer.appendMessage(msg.persona,msg.text,{
-      id: msg.id,
-      timestamp: new Date(msg.timestamp),
-      type: msg.type || "incoming",
-      reactions: msg.reactions || [],
-      replyToId: msg.replyToId || null,
-      replyToText: msg.replyToText || null
+/* =====================================================
+   INIT
+===================================================== */
+(async function init(){
+  if(!window.TGRenderer){
+    await new Promise(resolve=>{
+      const check = setInterval(()=>{
+        if(window.TGRenderer){ clearInterval(check); resolve(); }
+      },50);
     });
   }
-}
 
-// main loader entry point
-window.loadHistory = async function(allMessages){
-  if(!Array.isArray(allMessages) || !allMessages.length) return;
-
-  // split recent messages for typing simulation
-  const RECENT_COUNT = 5;
-  const recentMessages = allMessages.slice(-RECENT_COUNT);
-  const olderMessages = allMessages.slice(0,-RECENT_COUNT);
-
-  window.initHistoryLoader(olderMessages);
-  window.startHistoryLoader(); // load older messages in background
-
-  // show recent messages with typing simulation
-  window.simulateRecentTyping(recentMessages);
-}
+  if(MESSAGE_POOL.length){
+    await loadHistory(MESSAGE_POOL);
+  } else {
+    console.warn("No MESSAGE_POOL found for history loader");
+  }
+})();
 })();
