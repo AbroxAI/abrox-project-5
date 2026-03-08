@@ -1,4 +1,4 @@
-// interactions-fixed.js — Telegram-style typing + variable speed + horizontal reactions
+// interactions-fixed-telegram.js — user interaction + telegram-style typing system
 (function(){
 "use strict";
 
@@ -21,29 +21,30 @@ async function waitForReady(timeout=30000){
 }
 
 /* =====================================================
-   HEADER TYPING INDICATOR
+   HEADER TYPING INDICATOR — Telegram style
 ===================================================== */
 const metaLine=document.getElementById("tg-meta-line");
 let typingActive=false;
-let typingDotsInterval=null;
+
+function createTypingDots(){
+  const span=document.createElement("span");
+  span.className="tg-typing-dots";
+  span.innerHTML='<span></span><span></span><span></span>';
+  return span;
+}
 
 function showTyping(name){
   if(!metaLine) return;
   metaLine.dataset.prev=metaLine.textContent;
-  metaLine.textContent=`${name} is typing`;
-  let dots=0;
+  metaLine.textContent=name+' is typing ';
+  const dots=createTypingDots();
+  metaLine.appendChild(dots);
   typingActive=true;
-  clearInterval(typingDotsInterval);
-  typingDotsInterval=setInterval(()=>{
-    dots=(dots+1)%4;
-    metaLine.textContent=`${name} is typing${'.'.repeat(dots)}`;
-  },400);
 }
 
 function hideTyping(){
   if(!metaLine) return;
-  clearInterval(typingDotsInterval);
-  metaLine.textContent=metaLine.dataset.prev || '';
+  if(metaLine.dataset.prev) metaLine.textContent=metaLine.dataset.prev;
   typingActive=false;
 }
 
@@ -55,9 +56,10 @@ let typingQueue=Promise.resolve();
 window.queuedTyping=function(persona,text){
   typingQueue=typingQueue.then(async()=>{
     if(!persona?.name || !text) return;
+    // Calculate typing time based on text length + randomness
+    const baseSpeed = rand(50,90); // ms per char
+    const typingTime = Math.min(4000, Math.max(600, text.length*baseSpeed));
     showTyping(persona.name);
-    // variable typing speed per persona
-    const typingTime=Math.min(4000, Math.max(600, text.length * rand(30,50)));
     await delay(typingTime);
     hideTyping();
   });
@@ -97,19 +99,17 @@ async function simulateReply(userText){
     if(!persona) return;
 
     let reply=null;
-
     if(window.realism?.generateReply){
       reply=window.realism.generateReply(userText,persona);
     }
-
     if(!reply && window.realism?.postFallbackReply){
-      reply=window.realism.postFallbackReply(userText) || "…";
+      return window.realism.postFallbackReply(userText);
     }
 
+    // Queue typing with realistic speed
     await window.queuedTyping(persona,reply);
 
     window.TGRenderer.appendMessage(persona,reply,{timestamp:new Date(),type:"incoming"});
-
     scrollToBottom();
 
   }catch(e){
@@ -139,27 +139,10 @@ if(sendBtn){
 }
 
 /* =====================================================
-   REACTIONS PILL FIX — HORIZONTAL
-===================================================== */
-function createHorizontalReactionPill(bubbleEl,reactions){
-  if(!bubbleEl || !reactions?.length) return;
-  const pill = document.createElement('div');
-  pill.className = 'tg-reaction-pill';
-  pill.style.flexDirection='row'; // enforce horizontal
-  reactions.forEach(r=>{
-    const item=document.createElement('div');
-    item.className='tg-reaction-item';
-    item.textContent=`${r.emoji} ${r.count}`;
-    pill.appendChild(item);
-  });
-  bubbleEl.appendChild(pill);
-}
-
-/* =====================================================
    INIT
 ===================================================== */
 (async function init(){
   await waitForReady();
-  console.log("✅ interactions-fixed ready: typing indicator + variable speed + horizontal reactions");
+  console.log("✅ interactions ready — Telegram-style typing enabled");
 })();
 })();
