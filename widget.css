@@ -1,0 +1,271 @@
+/* ===========================
+   Telegram 2026 Widget CSS — Ultra Realism
+=========================== */
+
+/* ---------- Container ---------- */
+.tg-comments-container {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #f8f9fa;
+  font-family: "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  scrollbar-width: thin;
+  scrollbar-color: #cfd3d7 transparent;
+}
+
+.tg-comments-container::-webkit-scrollbar {
+  width: 8px;
+}
+.tg-comments-container::-webkit-scrollbar-thumb {
+  background-color: #cfd3d7;
+  border-radius: 4px;
+}
+
+/* ---------- Bubbles ---------- */
+.tg-bubble {
+  display: flex;
+  align-items: flex-start;
+  max-width: 70%;
+  position: relative;
+  padding: 12px 16px;
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  word-break: break-word;
+}
+
+.tg-bubble.outgoing {
+  margin-left: auto;
+  background: #dcf8c6;
+}
+
+.tg-bubble.incoming {
+  margin-right: auto;
+  background: #ffffff;
+}
+
+/* ---------- Bubble Tail ---------- */
+.tg-bubble.incoming::after,
+.tg-bubble.outgoing::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  bottom: 0;
+  border-radius: 4px;
+  background: inherit;
+}
+
+.tg-bubble.incoming::after {
+  left: -8px;
+  transform: rotate(45deg);
+}
+
+.tg-bubble.outgoing::after {
+  right: -8px;
+  transform: rotate(45deg);
+}
+
+/* ---------- Avatar ---------- */
+.tg-bubble-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-right: 12px;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.tg-bubble.outgoing .tg-bubble-avatar {
+  margin-left: 12px;
+  margin-right: 0;
+}
+
+/* ---------- Bubble Content ---------- */
+.tg-bubble-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ---------- Sender Name ---------- */
+.tg-bubble-sender {
+  font-weight: 600;
+  font-size: 13px;
+  color: #222;
+  line-height: 1.2;
+}
+
+/* ---------- Message Text ---------- */
+.tg-bubble-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #111;
+  white-space: pre-line;
+  word-wrap: break-word;
+}
+
+/* ---------- Meta / Timestamp ---------- */
+.tg-bubble-meta {
+  font-size: 11px;
+  color: #888;
+  text-align: right;
+}
+
+/* ---------- Date Sticker ---------- */
+.tg-date-sticker {
+  align-self: center;
+  background: #e0e0e0;
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #555;
+  margin: 16px 0;
+}
+
+/* ---------- Reaction Pill ---------- */
+.tg-reaction-pill {
+  display: flex;
+  gap: 6px;
+  padding: 4px 10px;
+  background: #f1f3f5;
+  border-radius: 16px;
+  font-size: 12px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.tg-reaction-item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* ---------- Join Sticker ---------- */
+.tg-join-float {
+  position: relative;
+  background: #e1f5fe;
+  color: #0277bd;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 18px;
+  font-size: 13px;
+  margin: 6px 0;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: transform 0.4s ease, opacity 0.4s ease;
+}
+
+.tg-join-float.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ---------- Pinned Banner ---------- */
+#tg-pin-banner {
+  display: flex;
+  align-items: center;
+  background: #e3f2fd;
+  border-left: 4px solid #1976d2;
+  padding: 12px 16px;
+  border-radius: 14px;
+  gap: 14px;
+  position: sticky;
+  top: 0;
+  z-index: 999;
+  margin-bottom: 12px;
+  opacity: 0;
+  transform: translateY(-14px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+#tg-pin-banner.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.tg-pin-text {
+  font-weight: 600;
+  color: #1a1a1a;
+  flex: 1;
+}
+
+.pin-btn-container {
+  display: flex;
+  gap: 8px;
+}
+
+.pin-btn, .glass-btn {
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 18px;
+  border: none;
+  cursor: pointer;
+  background: #1976d2;
+  color: white;
+  font-weight: 600;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.pin-btn:hover, .glass-btn:hover {
+  transform: scale(1.05);
+  background: #1565c0;
+}
+
+/* ---------- Input Bar ---------- */
+.tg-input-bar {
+  display: flex;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 26px;
+  background: #ffffff;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.08);
+  position: sticky;
+  bottom: 0;
+  margin-top: 8px;
+}
+
+.tg-input-bar input {
+  flex: 1;
+  border: none;
+  outline: none;
+  border-radius: 22px;
+  padding: 10px 14px;
+  font-size: 14px;
+}
+
+.tg-input-bar button {
+  border: none;
+  background: #1976d2;
+  color: white;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 22px;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.tg-input-bar button:hover {
+  transform: scale(1.05);
+  background: #1565c0;
+}
+
+/* ---------- Highlight Animation ---------- */
+.tg-highlight {
+  background-color: rgba(255,229,100,0.35);
+  border-radius: 18px;
+  animation: tgFadePulse 2.6s ease-out forwards;
+}
+
+@keyframes tgFadePulse {
+  0% { opacity:1; transform: scale(1.03); }
+  20% { opacity:1; transform: scale(1); }
+  100% { opacity:0; transform: scale(1); }
+}
