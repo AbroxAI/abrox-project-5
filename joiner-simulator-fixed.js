@@ -1,4 +1,4 @@
-// joiner-simulator-fixed.js — ULTRA REALISM ENGINE V4
+// joiner-simulator-fixed-v6.js — ULTRA REALISM ENGINE V6 (FULL POOL)
 (function () {
 "use strict";
 
@@ -29,26 +29,38 @@ function getPersona(){
   return window.identity?.getRandomPersona?.();
 }
 
-/* ================= CONFIG ================= */
+/* ================= CONFIG — FULL POOL ================= */
 const JOIN_MESSAGES=[
   "Hello everyone 👋","Glad to be here","Nice community","Happy to join",
-  "Hey traders","What's up everyone","Excited to learn","Hi guys!"
+  "Hey traders","What's up everyone","Excited to learn","Hi guys!",
+  "Looking forward to trading together","Good to see you all","Joined to learn","Ready to share ideas",
+  "Happy to meet new people here","Hi team!","Excited for this group","Hello, friends!","Learning mode on!"
 ];
+
 const GENERIC_REPLIES=[
-  "True actually","Exactly","Good point","Agreed","Interesting take",
-  "Facts 🔥","That makes sense","100%"
+  "True actually","Exactly","Good point","Agreed","Interesting take","Facts 🔥","That makes sense",
+  "100%","Absolutely","No doubt","Well said","Totally agree","Spot on","Nice insight","Couldn’t agree more",
+  "Right on","I was thinking the same","This is useful","Good explanation","Makes sense"
 ];
-const EMOJIS=["🔥","💯","🚀","👍","😂","👏","❤️","🎯","🙌","😎"];
+
+const EMOJIS=[
+  "🔥","💯","🚀","👍","😂","👏","❤️","🎯","🙌","😎",
+  "💸","✨","💰","📈","🥳","🤩","😇","🤔","😅","💥",
+  "💡","🌟","🎉","🤑","🤖","📝","🏆","🥂","🎯","💪"
+];
+
 const FRIEND_GROUPS=[
-  ["Alex","Maya","Chris"],
-  ["Daniel","Sophia","Leo","Zara","Ivan"]
+  ["Alex","Maya","Chris"], ["Daniel","Sophia","Ella"], ["Leo","Zara","Ivan"],
+  ["Nina","Oscar","Liam"], ["Emma","Noah","Olivia"], ["Ava","Ethan","Mia"],
+  ["Sophia","Lucas","Isabella"], ["Mason","Charlotte","Amelia"], ["Logan","Harper","Evelyn"]
 ];
+
 const messageMemory=[];
 
 /* ================= MEMORY ================= */
 function remember(msg){
   messageMemory.push(msg);
-  if(messageMemory.length>40) messageMemory.shift();
+  if(messageMemory.length>50) messageMemory.shift();
 }
 
 /* ================= HEADER ================= */
@@ -77,7 +89,7 @@ async function postMessage(persona,text,options={}){
   return msg;
 }
 
-/* ================= REALISM ================= */
+/* ================= REALISM REPLY ================= */
 function generateReply(baseText,persona){
   try{
     if(window.realism?.generateReply) return window.realism.generateReply(baseText,persona);
@@ -96,11 +108,13 @@ async function simulateJoin(batch=1){
     await postMessage(persona,text);
     onlineCount++;
     updateHeader();
-    await delay(300+Math.random()*500);
+    await delay(200+Math.random()*500);
   }
-  setTimeout(()=>{
-    window.TGRenderer?.appendJoinSticker?.(newMembers);
-  },200);
+
+  // Show join sticker for all new members
+  if(window.TGRenderer?.appendJoinSticker){
+    window.TGRenderer.appendJoinSticker(newMembers);
+  }
 }
 
 /* ================= BASIC REPLY ================= */
@@ -129,7 +143,7 @@ async function simulateFriendConversation(){
     const reply=generateReply(lastText,persona);
     await postMessage(persona,reply);
     lastText=reply;
-    await delay(900+Math.random()*1200);
+    await delay(800+Math.random()*1200);
   }
 }
 
@@ -197,9 +211,13 @@ async function activityLoop(){
 /* ================= START ================= */
 async function start(){
   await waitForSystem();
-  debug("Joiner Simulator V4 started");
+  debug("Joiner Simulator V6 started");
+
+  // Initial joins with visual badge
   const initialJoins=window.JOINER_CONFIG?.initialJoins || 5;
   await simulateJoin(initialJoins);
+
+  // Start the activity engine
   activityLoop();
 }
 
