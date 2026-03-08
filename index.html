@@ -27,24 +27,15 @@
       REACTION_TICK_MS: 30000,
       TREND_SPIKE_PROB: 0.02
     };
-
-    window.JOINER_CONFIG = {
-      minIntervalMs: 1000 * 60 * 60 * 6,
-      maxIntervalMs: 1000 * 60 * 60 * 24,
-      initialJoins: 3,
-      welcomeMessage: "Welcome! Please use Contact Admin to verify."
-    };
   </script>
 </head>
 <body>
 
   <div id="tg-comments-app">
-    <!-- HEADER -->
     <header class="tg-header" role="banner">
       <button id="tg-back" class="tg-back-btn" aria-label="Back">
         <i data-lucide="arrow-left"></i>
       </button>
-
       <div class="tg-header-center">
         <img src="assets/logo.jpg" alt="Logo" class="tg-header-avatar" />
         <div class="tg-header-info">
@@ -52,25 +43,18 @@
           <div class="tg-meta" id="tg-meta-line">1,284 members, 128 online</div>
         </div>
       </div>
-
       <button id="tg-options" class="tg-options-btn" aria-label="Options">
         <i data-lucide="more-vertical"></i>
       </button>
     </header>
 
-    <!-- PIN BANNER -->
     <div id="tg-pin-banner" class="tg-pin-banner hidden" role="region" aria-live="polite"></div>
-
-    <!-- CHAT CONTAINER -->
     <main id="tg-comments-container" class="tg-comments-container" role="feed" aria-live="off"></main>
-
-    <!-- NEW MESSAGE JUMP INDICATOR -->
     <div id="tg-jump-indicator" class="hidden" aria-hidden="true">
       <i data-lucide="chevron-down"></i>
       <span id="tg-jump-text">New messages</span>
     </div>
 
-    <!-- INPUT BAR (LOCKED ONLY) -->
     <div class="tg-input-wrapper" role="form" aria-label="Send a message">
       <div class="tg-input-bar glass locked" id="tg-input-bar">
         <i data-lucide="lock" class="tg-input-lock"></i>
@@ -90,7 +74,6 @@
   <script src="realism-engine-v13-fixed.js"></script>
   <script src="app.js"></script>
   <script src="interactions-fixed.js"></script>
-  <script src="joiner-simulator-fixed.js"></script>
   <script src="lazy-load-history.js"></script>
 
   <!-- ==========================
@@ -106,8 +89,7 @@
           window.identity?.SyntheticPool?.length &&
           window.TGRenderer?.appendMessage &&
           window.queuedTyping &&
-          window.realism?.simulate &&
-          window.joiner?.simulateJoins
+          window.realism?.simulate
         )) await new Promise(r=>setTimeout(r,50));
       }
       await waitForReady();
@@ -115,7 +97,7 @@
       const container = document.getElementById("tg-comments-container");
 
       // -------------------------
-      // START REALISM
+      // START REALISM ENGINE
       // -------------------------
       if(!window.realism.started){
         window.realism.simulate();
@@ -123,23 +105,13 @@
       }
 
       // -------------------------
-      // INITIAL JOINER
-      // -------------------------
-      if(window.JOINER_CONFIG?.initialJoins && !window.joinerDone){
-        const count = window.JOINER_CONFIG.initialJoins;
-        await window.joiner.simulateJoins(count);
-        window.joinerDone = true;
-      }
-
-      // -------------------------
-      // PIN BANNER & ADMIN MESSAGE
+      // POST PIN BANNER & ADMIN MESSAGE
       // -------------------------
       if(window.realism.postAdminBroadcast){
         const broadcast = await window.realism.postAdminBroadcast();
         window.realism.postPinNotice?.();
         window.realism.showPinBanner?.(broadcast.image, broadcast.id);
-        // scroll to bottom after pinned message
-        requestAnimationFrame(()=>container.scrollTop=container.scrollHeight);
+        requestAnimationFrame(()=>container.scrollTop = container.scrollHeight);
       }
 
       // -------------------------
@@ -147,7 +119,7 @@
       // -------------------------
       window.interactions.ready = true;
 
-      console.log("✅ All systems initialized: Identity, Realism, Joiner, Pin Banner, Interactions.");
+      console.log("✅ All systems initialized: Identity, Realism, Reactions, Threaded Replies, Pin Banner, Interactions.");
     })();
   </script>
 </body>
