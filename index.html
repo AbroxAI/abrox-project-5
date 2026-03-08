@@ -6,7 +6,7 @@
   <title>Abrox – Profit Hunters Chat</title>
 
   <!-- widget CSS -->
-  <link rel="stylesheet" href="widget.css" />
+  <link rel="stylesheet" href="widget-fixed.css" />
 
   <script>
     // ==========================
@@ -64,10 +64,12 @@
   <div id="tg-pin-banner" class="tg-pin-banner hidden" role="region" aria-live="polite"></div>
 
   <!-- CHAT CONTAINER -->
-  <main id="tg-comments-container"
-        class="tg-comments-container"
-        role="feed"
-        aria-live="off"></main>
+  <main
+    id="tg-comments-container"
+    class="tg-comments-container"
+    role="feed"
+    aria-live="off">
+  </main>
 
   <!-- NEW MESSAGE INDICATOR -->
   <div id="tg-jump-indicator" class="hidden" aria-hidden="true">
@@ -87,34 +89,23 @@
 
 </div>
 
-
 <!-- ICON LIBRARY -->
 <script src="https://unpkg.com/lucide@latest"></script>
-
 
 <!-- ==========================
      SCRIPT LOAD ORDER
 ========================== -->
-
-<script src="identity-personas-v7.js"></script>
-
-<script src="bubble-renderer-fixed.js"></script>
-
-<script src="realism-engine-v13-fixed.js"></script>
-
-<script src="interactions.js"></script>
-
-<script src="joiner-simulator.js"></script>
-
+<script src="identity-personas-v7-fixed.js"></script>
+<script src="bubble-renderer-fixed-v2.js"></script>
+<script src="realism-engine-v15-fixed.js"></script>
+<script src="joiner-simulator-fixed.js"></script>
 <script src="history-loader.js"></script>
-
+<script src="interactions.js"></script>
 <script src="app.js"></script>
-
 
 <!-- ==========================
      SAFE INITIALIZATION
 ========================== -->
-
 <script>
 (async function initAllSystems(){
 
