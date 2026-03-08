@@ -1,72 +1,90 @@
-// lazy-load-history.js — Efficient chat history loader for 10k+ messages
+// history-loader-fixed.js — lazy history loader + chunked + correct dates + recent-first typing
 (function(){
 "use strict";
 
-/* ================= UTIL ================= */
-function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
-function rand(min,max){ return Math.floor(Math.random()*(max-min)+min); }
+const HISTORY_CHUNK_SIZE = 50; // number of messages to load per batch
+const LOAD_DELAY = 120; // ms between message render to simulate typing
 
-/* ================= CONFIG ================= */
-const BATCH_SIZE = 50;        // messages loaded per batch
-const MAX_HISTORY = 10000;    // max messages to simulate
-let historyLoaded = 0;
-let loadingHistory = false;
+let historyQueue = []; // full 10k messages
+let historyIndex = 0; // next message to load
 
-/* ================= SAFE MESSAGE APPEND ================= */
-async function appendHistoryMessage(persona,text,timestamp){
-  if(!window.TGRenderer?.appendMessage) return;
-  return window.TGRenderer.appendMessage(persona,text,{
-    timestamp: timestamp || new Date(Date.now() - Math.random()*30*86400000),
-    type: "incoming"
-  });
+function sortByTimestamp(messages){
+  return messages.sort((a,b)=>new Date(a.timestamp) - new Date(b.timestamp));
 }
 
-/* ================= GENERATE HISTORY MESSAGE ================= */
-function generateHistoryItem(){
-  const persona = window.identity?.getRandomPersona?.();
-  if(!persona) return null;
-  const text = window.realism?.generateReply?.("History context",persona) ||
-               "Earlier message " + (historyLoaded+1);
-  const timestamp = new Date(Date.now() - Math.random()*30*86400000);
-  return { persona, text, timestamp };
+// initialize the history queue
+window.initHistoryLoader = function(messages){
+  if(!Array.isArray(messages)) return;
+  historyQueue = sortByTimestamp(messages); // oldest -> newest
+  historyIndex = historyQueue.length; // start loading from the end
+  console.log(`🗂 History loader initialized: ${historyQueue.length} messages`);
 }
 
-/* ================= LOAD BATCH ================= */
-async function loadHistoryBatch(){
-  if(loadingHistory) return;
-  loadingHistory = true;
-  const container = document.getElementById("tg-comments-container");
-  if(!container) return;
+// load next chunk from history
+async function loadNextChunk(){
+  if(historyIndex <= 0) return;
 
-  for(let i=0;i<BATCH_SIZE && historyLoaded<MAX_HISTORY;i++){
-    const item = generateHistoryItem();
-    if(!item) continue;
-    await appendHistoryMessage(item.persona,item.text,item.timestamp);
-    historyLoaded++;
+  const chunkStart = Math.max(0, historyIndex - HISTORY_CHUNK_SIZE);
+  const chunk = historyQueue.slice(chunkStart, historyIndex);
+  historyIndex = chunkStart;
+
+  // render each message with delay to simulate typing
+  for(const msg of chunk){
+    if(!msg.persona) msg.persona = {name:"User", avatar:null};
+    window.TGRenderer.appendMessage(msg.persona,msg.text,{
+      id: msg.id,
+      timestamp: new Date(msg.timestamp),
+      type: msg.type || "incoming",
+      reactions: msg.reactions || [],
+      replyToId: msg.replyToId || null,
+      replyToText: msg.replyToText || null,
+      caption: msg.caption || null,
+      image: msg.image || null
+    });
+    await delay(LOAD_DELAY);
   }
-
-  loadingHistory = false;
 }
 
-/* ================= SCROLL DETECTION ================= */
-function setupLazyScroll(){
-  const container = document.getElementById("tg-comments-container");
-  if(!container) return;
-
-  container.addEventListener("scroll", async ()=>{
-    if(container.scrollTop < 150 && historyLoaded < MAX_HISTORY){
-      await loadHistoryBatch();
-    }
-  });
+// start loading history in background
+window.startHistoryLoader = async function(){
+  while(historyIndex > 0){
+    await loadNextChunk();
+    await delay(200); // small delay between chunks
+  }
+  console.log("✅ History fully loaded");
 }
 
-/* ================= INITIAL LOAD ================= */
-async function initLazyLoad(){
-  await delay(100); // wait for TGRenderer ready
-  await loadHistoryBatch();
-  setupLazyScroll();
+// simulate typing indicator for recent messages
+window.simulateRecentTyping = async function(recentMessages){
+  if(!Array.isArray(recentMessages)) return;
+
+  for(const msg of recentMessages){
+    if(!msg.persona) msg.persona = {name:"User", avatar:null};
+    await window.queuedTyping(msg.persona,msg.text);
+    window.TGRenderer.appendMessage(msg.persona,msg.text,{
+      id: msg.id,
+      timestamp: new Date(msg.timestamp),
+      type: msg.type || "incoming",
+      reactions: msg.reactions || [],
+      replyToId: msg.replyToId || null,
+      replyToText: msg.replyToText || null
+    });
+  }
 }
 
-document.readyState==="loading" ? document.addEventListener("DOMContentLoaded",initLazyLoad) : initLazyLoad();
+// main loader entry point
+window.loadHistory = async function(allMessages){
+  if(!Array.isArray(allMessages) || !allMessages.length) return;
 
+  // split recent messages for typing simulation
+  const RECENT_COUNT = 5;
+  const recentMessages = allMessages.slice(-RECENT_COUNT);
+  const olderMessages = allMessages.slice(0,-RECENT_COUNT);
+
+  window.initHistoryLoader(olderMessages);
+  window.startHistoryLoader(); // load older messages in background
+
+  // show recent messages with typing simulation
+  window.simulateRecentTyping(recentMessages);
+}
 })();
