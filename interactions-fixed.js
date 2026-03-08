@@ -1,9 +1,9 @@
-// interactions-fixed-telegram.js — user interaction + telegram-style typing system
+// interactions-fixed-typing.js — realistic typing indicator + queue + persona speed
 (function(){
 "use strict";
 
 /* =====================================================
-   UTIL
+   UTILS
 ===================================================== */
 function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
 function rand(min,max){ return Math.floor(Math.random()*(max-min)+min); }
@@ -21,24 +21,15 @@ async function waitForReady(timeout=30000){
 }
 
 /* =====================================================
-   HEADER TYPING INDICATOR — Telegram style
+   HEADER TYPING INDICATOR
 ===================================================== */
 const metaLine=document.getElementById("tg-meta-line");
 let typingActive=false;
 
-function createTypingDots(){
-  const span=document.createElement("span");
-  span.className="tg-typing-dots";
-  span.innerHTML='<span></span><span></span><span></span>';
-  return span;
-}
-
 function showTyping(name){
   if(!metaLine) return;
   metaLine.dataset.prev=metaLine.textContent;
-  metaLine.textContent=name+' is typing ';
-  const dots=createTypingDots();
-  metaLine.appendChild(dots);
+  metaLine.textContent=`${name} is typing...`;
   typingActive=true;
 }
 
@@ -55,11 +46,16 @@ let typingQueue=Promise.resolve();
 
 window.queuedTyping=function(persona,text){
   typingQueue=typingQueue.then(async()=>{
-    if(!persona?.name || !text) return;
-    // Calculate typing time based on text length + randomness
-    const baseSpeed = rand(50,90); // ms per char
-    const typingTime = Math.min(4000, Math.max(600, text.length*baseSpeed));
+    if(!persona?.name) return;
+
     showTyping(persona.name);
+
+    // Realistic typing speed per persona
+    // Average: 200ms per character, plus randomness
+    const baseSpeed = persona.typingSpeed || 200; // can define per persona
+    const variance = rand(-50,50); // small variation
+    const typingTime = Math.min(5000, Math.max(600, text.length * (baseSpeed + variance)));
+
     await delay(typingTime);
     hideTyping();
   });
@@ -102,11 +98,13 @@ async function simulateReply(userText){
     if(window.realism?.generateReply){
       reply=window.realism.generateReply(userText,persona);
     }
+
     if(!reply && window.realism?.postFallbackReply){
       return window.realism.postFallbackReply(userText);
     }
 
-    // Queue typing with realistic speed
+    // Persona-specific typing animation
+    if(!persona.typingSpeed) persona.typingSpeed = rand(180,280); // random speed per persona
     await window.queuedTyping(persona,reply);
 
     window.TGRenderer.appendMessage(persona,reply,{timestamp:new Date(),type:"incoming"});
@@ -143,6 +141,6 @@ if(sendBtn){
 ===================================================== */
 (async function init(){
   await waitForReady();
-  console.log("✅ interactions ready — Telegram-style typing enabled");
+  console.log("✅ interactions ready — typing indicator upgraded");
 })();
 })();
