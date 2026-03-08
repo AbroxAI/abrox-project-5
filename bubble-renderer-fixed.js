@@ -1,4 +1,4 @@
-// bubble-renderer-fixed.js — FINAL FIXED + REACTIONS + JOIN STICKER + INPUT LOCK + NEW MESSAGE PILL + AUTO-SCROLL
+// bubble-renderer-fixed-v2.js — Full fixed + horizontal reactions + recent-first load + typing
 (function () {
 'use strict';
 
@@ -30,7 +30,7 @@ function init() {
     return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
   }
 
-  function insertDateSticker(date) {
+  function insertDateSticker(date, prepend=false) {
     const key = formatDateKey(date);
     if (key === lastDateKey) return;
     lastDateKey = key;
@@ -43,7 +43,8 @@ function init() {
       day: 'numeric'
     });
 
-    container.appendChild(sticker);
+    if(prepend) container.insertBefore(sticker, container.firstChild);
+    else container.appendChild(sticker);
   }
 
   /* =====================================================
@@ -69,6 +70,7 @@ function init() {
 
     const pill = document.createElement('div');
     pill.className = 'tg-reaction-pill';
+    pill.style.flexDirection = 'row'; // enforce horizontal layout
 
     reactions.forEach(r => {
       const item = document.createElement('div');
@@ -83,7 +85,7 @@ function init() {
   /* =====================================================
      CREATE BUBBLE
   ===================================================== */
-  function createBubble(persona, text, opts = {}) {
+  function createBubble(persona, text, opts = {}, prepend=false) {
 
     const id = opts.id || ('m_' + Date.now() + '_' + Math.floor(Math.random() * 9999));
     const type = opts.type === 'outgoing' ? 'outgoing' : 'incoming';
@@ -94,7 +96,7 @@ function init() {
     const caption = opts.caption || null;
     const reactions = opts.reactions || [];
 
-    insertDateSticker(timestamp);
+    insertDateSticker(timestamp, prepend);
 
     const wrapper = document.createElement('div');
     wrapper.className = `tg-bubble ${type}`;
@@ -186,6 +188,9 @@ function init() {
     const reactionPill = createReactionPill(reactions);
     if (reactionPill) wrapper.appendChild(reactionPill);
 
+    if(prepend) container.insertBefore(wrapper, container.firstChild);
+    else container.appendChild(wrapper);
+
     MESSAGE_MAP.set(id,{el:wrapper,text:finalText,persona,timestamp});
     return {el:wrapper,id};
   }
@@ -226,20 +231,25 @@ function init() {
      APPEND MESSAGE + AUTO-SCROLL
   ===================================================== */
   function appendMessage(persona,text,opts={}) {
-    const result = createBubble(persona,text,opts);
-    container.appendChild(result.el);
+    const result = createBubble(persona,text,opts,false);
 
     // Scroll behavior
     const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 80;
-    if (INITIAL_LOAD || atBottom) {
-      container.scrollTop = container.scrollHeight;
-    } else {
+    if (INITIAL_LOAD || atBottom) container.scrollTop = container.scrollHeight;
+    else {
       unseenCount++;
       updateJump();
       showJump();
     }
 
     return result.id;
+  }
+
+  /* =====================================================
+     PREPEND OLD MESSAGES (for batch load)
+  ===================================================== */
+  function prependMessage(persona,text,opts={}) {
+    return createBubble(persona,text,opts,true);
   }
 
   /* =====================================================
@@ -265,11 +275,18 @@ function init() {
   /* =====================================================
      PUBLIC API
   ===================================================== */
-  window.TGRenderer = { appendMessage, appendJoinSticker, lockInput, unlockInput, getPinnedMessageId:()=>PINNED_MESSAGE_ID };
+  window.TGRenderer = { 
+    appendMessage, 
+    prependMessage,        // new for batch older messages
+    appendJoinSticker, 
+    lockInput, 
+    unlockInput, 
+    getPinnedMessageId:()=>PINNED_MESSAGE_ID 
+  };
 
-  console.log('✅ bubble-renderer FIXED: reactions + join sticker + input lock + auto-scroll');
+  console.log('✅ bubble-renderer FIXED V2: recent-first + horizontal reactions + join sticker + input lock + auto-scroll');
 
-  INITIAL_LOAD = false; // mark initial load done
+  INITIAL_LOAD = false; 
 }
 
 document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', init) : init();
