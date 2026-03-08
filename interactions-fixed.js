@@ -1,4 +1,4 @@
-// interactions-fixed.js — user interaction + typing system (Telegram 2026 style)
+// interactions-fixed.js — Telegram-style typing + variable speed + horizontal reactions
 (function(){
 "use strict";
 
@@ -7,7 +7,6 @@
 ===================================================== */
 function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
 function rand(min,max){ return Math.floor(Math.random()*(max-min)+min); }
-function chance(p){ return Math.random() < p; }
 
 /* =====================================================
    WAIT FOR SYSTEM
@@ -22,36 +21,30 @@ async function waitForReady(timeout=30000){
 }
 
 /* =====================================================
-   HEADER TYPING INDICATOR + Animated Bubble
+   HEADER TYPING INDICATOR
 ===================================================== */
 const metaLine=document.getElementById("tg-meta-line");
 let typingActive=false;
-const activeTypingBubbles = new Map();
+let typingDotsInterval=null;
 
-function showTypingBubble(persona){
-  if(!metaLine || !persona?.name) return;
-
-  // create animated bubble if not exist
-  if(!activeTypingBubbles.has(persona.name)){
-    const bubble = document.createElement('div');
-    bubble.className = 'tg-typing-bubble';
-    bubble.innerHTML = `
-      <span class="tg-avatar-dot" style="background-image:url(${persona.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(persona.name)}`}"></span>
-      <span class="tg-dot-animation"><span></span><span></span><span></span></span>
-    `;
-    metaLine.parentNode.appendChild(bubble);
-    activeTypingBubbles.set(persona.name, bubble);
-  }
-  typingActive = true;
+function showTyping(name){
+  if(!metaLine) return;
+  metaLine.dataset.prev=metaLine.textContent;
+  metaLine.textContent=`${name} is typing`;
+  let dots=0;
+  typingActive=true;
+  clearInterval(typingDotsInterval);
+  typingDotsInterval=setInterval(()=>{
+    dots=(dots+1)%4;
+    metaLine.textContent=`${name} is typing${'.'.repeat(dots)}`;
+  },400);
 }
 
-function hideTypingBubble(persona){
-  const bubble = activeTypingBubbles.get(persona.name);
-  if(bubble){
-    bubble.remove();
-    activeTypingBubbles.delete(persona.name);
-  }
-  if(activeTypingBubbles.size === 0) typingActive=false;
+function hideTyping(){
+  if(!metaLine) return;
+  clearInterval(typingDotsInterval);
+  metaLine.textContent=metaLine.dataset.prev || '';
+  typingActive=false;
 }
 
 /* =====================================================
@@ -59,29 +52,14 @@ function hideTypingBubble(persona){
 ===================================================== */
 let typingQueue=Promise.resolve();
 
-window.queuedTyping=function(persona,text,isHistory=false){
+window.queuedTyping=function(persona,text){
   typingQueue=typingQueue.then(async()=>{
-    if(!persona?.name) return;
-
-    // Skip typing for old historical messages
-    if(isHistory) return;
-
-    showTypingBubble(persona);
-
-    // Variable typing speed
-    const minSpeed=30, maxSpeed=70; // ms per character
-    let typingTime = Math.min(text.length*rand(minSpeed,maxSpeed), 6000);
-
-    // occasional pauses for realism
-    let elapsed=0;
-    while(elapsed < typingTime){
-      let chunk=rand(300,800);
-      await delay(chunk);
-      if(chance(0.1)) await delay(rand(200,600));
-      elapsed += chunk;
-    }
-
-    hideTypingBubble(persona);
+    if(!persona?.name || !text) return;
+    showTyping(persona.name);
+    // variable typing speed per persona
+    const typingTime=Math.min(4000, Math.max(600, text.length * rand(30,50)));
+    await delay(typingTime);
+    hideTyping();
   });
   return typingQueue;
 };
@@ -125,13 +103,13 @@ async function simulateReply(userText){
     }
 
     if(!reply && window.realism?.postFallbackReply){
-      return window.realism.postFallbackReply(userText);
+      reply=window.realism.postFallbackReply(userText) || "…";
     }
 
-    // simulate queued typing (recent messages only)
-    await window.queuedTyping(persona,reply,false);
+    await window.queuedTyping(persona,reply);
 
     window.TGRenderer.appendMessage(persona,reply,{timestamp:new Date(),type:"incoming"});
+
     scrollToBottom();
 
   }catch(e){
@@ -145,7 +123,7 @@ async function simulateReply(userText){
 function scrollToBottom(){
   const container=document.querySelector(".tg-comments-container");
   if(!container) return;
-  setTimeout(()=>{ container.scrollTop = container.scrollHeight; },50);
+  setTimeout(()=>{ container.scrollTop=container.scrollHeight; },50);
 }
 
 /* =====================================================
@@ -161,10 +139,27 @@ if(sendBtn){
 }
 
 /* =====================================================
+   REACTIONS PILL FIX — HORIZONTAL
+===================================================== */
+function createHorizontalReactionPill(bubbleEl,reactions){
+  if(!bubbleEl || !reactions?.length) return;
+  const pill = document.createElement('div');
+  pill.className = 'tg-reaction-pill';
+  pill.style.flexDirection='row'; // enforce horizontal
+  reactions.forEach(r=>{
+    const item=document.createElement('div');
+    item.className='tg-reaction-item';
+    item.textContent=`${r.emoji} ${r.count}`;
+    pill.appendChild(item);
+  });
+  bubbleEl.appendChild(pill);
+}
+
+/* =====================================================
    INIT
 ===================================================== */
 (async function init(){
   await waitForReady();
-  console.log("✅ interactions ready — typing, Telegram-style animation, and realistic speed enabled");
+  console.log("✅ interactions-fixed ready: typing indicator + variable speed + horizontal reactions");
 })();
 })();
