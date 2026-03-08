@@ -4,14 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Abrox – Profit Hunters Chat</title>
-
-  <!-- widget CSS -->
   <link rel="stylesheet" href="widget-fixed.css" />
 
   <script>
-    // ==========================
-    // SITE CONFIG
-    // ==========================
     window.CONTACT_ADMIN_LINK = "https://t.me/ph_suppp";
     window.MEMBER_COUNT = 1284;
     window.ONLINE_COUNT = 128;
@@ -36,154 +31,43 @@
     };
   </script>
 </head>
-
 <body>
+  <div id="tg-comments-app">
+    <!-- HEADER -->
+    <header class="tg-header">
+      <button id="tg-back" class="tg-back-btn"><i data-lucide="arrow-left"></i></button>
+      <div class="tg-header-center">
+        <img src="assets/logo.jpg" alt="Logo" class="tg-header-avatar" />
+        <div class="tg-header-info">
+          <div class="tg-title">🌐 Profit Hunters Chat</div>
+          <div class="tg-meta" id="tg-meta-line">1,284 members, 128 online</div>
+        </div>
+      </div>
+      <button id="tg-options" class="tg-options-btn"><i data-lucide="more-vertical"></i></button>
+    </header>
 
-<div id="tg-comments-app">
+    <!-- PIN BANNER -->
+    <div id="tg-pin-banner" class="tg-pin-banner hidden"></div>
 
-  <!-- HEADER -->
-  <header class="tg-header" role="banner">
-    <button id="tg-back" class="tg-back-btn" aria-label="Back">
-      <i data-lucide="arrow-left"></i>
-    </button>
+    <!-- CHAT CONTAINER -->
+    <main id="tg-comments-container" class="tg-comments-container"></main>
 
-    <div class="tg-header-center">
-      <img src="assets/logo.jpg" alt="Logo" class="tg-header-avatar" />
-      <div class="tg-header-info">
-        <div class="tg-title">🌐 Profit Hunters Chat</div>
-        <div class="tg-meta" id="tg-meta-line">1,284 members, 128 online</div>
+    <!-- NEW MESSAGE INDICATOR -->
+    <div id="tg-jump-indicator" class="hidden">
+      <i data-lucide="chevron-down"></i>
+      <span id="tg-jump-text">New messages</span>
+    </div>
+
+    <!-- INPUT BAR -->
+    <div class="tg-input-wrapper">
+      <div class="tg-input-bar glass locked" id="tg-input-bar">
+        <i data-lucide="lock" class="tg-input-lock"></i>
+        <span class="tg-input-locked-text">Only verified members can send messages</span>
       </div>
     </div>
-
-    <button id="tg-options" class="tg-options-btn" aria-label="Options">
-      <i data-lucide="more-vertical"></i>
-    </button>
-  </header>
-
-  <!-- PIN BANNER -->
-  <div id="tg-pin-banner" class="tg-pin-banner hidden" role="region" aria-live="polite"></div>
-
-  <!-- CHAT CONTAINER -->
-  <main
-    id="tg-comments-container"
-    class="tg-comments-container"
-    role="feed"
-    aria-live="off">
-  </main>
-
-  <!-- NEW MESSAGE INDICATOR -->
-  <div id="tg-jump-indicator" class="hidden" aria-hidden="true">
-    <i data-lucide="chevron-down"></i>
-    <span id="tg-jump-text">New messages</span>
   </div>
 
-  <!-- INPUT BAR -->
-  <div class="tg-input-wrapper" role="form" aria-label="Send a message">
-    <div class="tg-input-bar glass locked" id="tg-input-bar">
-      <i data-lucide="lock" class="tg-input-lock"></i>
-      <span class="tg-input-locked-text">
-        Only verified members can send messages
-      </span>
-    </div>
-  </div>
-
-</div>
-
-<!-- ICON LIBRARY -->
-<script src="https://unpkg.com/lucide@latest"></script>
-
-<!-- ==========================
-     SCRIPT LOAD ORDER
-========================== -->
-<script src="identity-personas-v7-fixed.js"></script>
-<script src="bubble-renderer-fixed-v2.js"></script>
-<script src="realism-engine-v15-fixed.js"></script>
-<script src="joiner-simulator-fixed.js"></script>
-<script src="history-loader.js"></script>
-<script src="interactions.js"></script>
-<script src="app.js"></script>
-
-<!-- ==========================
-     SAFE INITIALIZATION
-========================== -->
-<script>
-(async function initAllSystems(){
-
-  // initialize icons
-  if(window.lucide){
-    lucide.createIcons();
-  }
-
-  // wait for persona pool
-  await window.identity.ready;
-
-  // wait for renderer
-  async function waitForRenderer(){
-    while(
-      !window.TGRenderer ||
-      !window.TGRenderer.appendMessage ||
-      !window.queuedTyping
-    ){
-      await new Promise(r=>setTimeout(r,50));
-    }
-  }
-
-  await waitForRenderer();
-
-  const container = document.getElementById("tg-comments-container");
-
-  // -------------------------
-  // LOAD HISTORY FIRST
-  // -------------------------
-  if(window.historyLoader){
-    await window.historyLoader.loadHistory();
-  }
-
-  // -------------------------
-  // START REALISM ENGINE
-  // -------------------------
-  if(!window.realism.started){
-    window.realism.simulate();
-    window.realism.started = true;
-  }
-
-  // -------------------------
-  // INITIAL JOINERS
-  // -------------------------
-  if(window.JOINER_CONFIG?.initialJoins && !window.joinerDone){
-    const count = window.JOINER_CONFIG.initialJoins;
-    await window.joiner.simulateJoins(count);
-    window.joinerDone = true;
-  }
-
-  // -------------------------
-  // ADMIN PIN MESSAGE
-  // -------------------------
-  if(window.realism.postAdminBroadcast){
-
-    const broadcast = await window.realism.postAdminBroadcast();
-
-    window.realism.postPinNotice?.();
-
-    window.realism.showPinBanner?.(broadcast.image, broadcast.id);
-
-    requestAnimationFrame(()=>{
-      container.scrollTop = container.scrollHeight;
-    });
-
-  }
-
-  // -------------------------
-  // INTERACTIONS READY
-  // -------------------------
-  if(window.interactions){
-    window.interactions.ready = true;
-  }
-
-  console.log("✅ Abrox chat systems ready.");
-
-})();
-</script>
-
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="abrox-bundle.js"></script>
 </body>
 </html>
