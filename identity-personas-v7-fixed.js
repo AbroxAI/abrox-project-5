@@ -2,13 +2,17 @@
 (function(){
 "use strict";
 
-// ================= CONFIG =================
+/* =====================================================
+   CONFIG
+===================================================== */
 const TOTAL_PERSONAS = Math.max(
   300,
   Math.min((window.REALISM_CONFIG?.TOTAL_PERSONAS || 3000), 100000)
 );
 
-// ================= ADMIN =================
+/* =====================================================
+   ADMIN
+===================================================== */
 const Admin = { 
   name: "Profit Hunter 🌐", 
   avatar: "assets/admin.jpg", 
@@ -21,7 +25,9 @@ const Admin = {
   memory: [] 
 };
 
-// ================= COUNTRY GROUPS =================
+/* =====================================================
+   COUNTRY GROUPS
+===================================================== */
 const COUNTRY_GROUPS = { 
   US:"western", UK:"western", CA:"western", AU:"western", DE:"western", FR:"western", IT:"western",
   NG:"african", ZA:"african", GH:"african", IN:"asian", JP:"asian", KR:"asian", CN:"asian",
@@ -29,17 +35,23 @@ const COUNTRY_GROUPS = {
 };
 const COUNTRIES = Object.keys(COUNTRY_GROUPS);
 
-// ================= NAME DATA =================
+/* =====================================================
+   NAME DATA
+===================================================== */
 const MALE_FIRST = ["Alex","John","Max","Leo","Sam","David","Liam","Noah","Ethan","James","Ryan","Michael","Daniel","Kevin","Oliver","William","Henry","Jack","Mason","Lucas","Elijah","Benjamin","Sebastian","Logan","Jacob","Wyatt","Carter","Julian","Luke","Isaac","Nathan","Aaron","Adrian","Victor","Caleb","Dominic","Xavier","Evan","Connor","Jason","Owen","Thomas","Charles","Jeremiah","Dylan","Zachary","Gabriel","Nicholas","Christian","Austin","Brandon","Ian","Colin","Rafael","Marcus","Simon","Tobias","Victoriano"];
 const FEMALE_FIRST = ["Maria","Lily","Emma","Zoe","Ivy","Sophia","Mia","Olivia","Ava","Charlotte","Amelia","Ella","Grace","Chloe","Hannah","Aria","Scarlett","Luna","Ruby","Sofia","Emily","Layla","Nora","Victoria","Aurora","Isabella","Madison","Penelope","Camila","Stella","Hazel","Violet","Savannah","Bella","Claire","Sienna","Juliet","Evelyn","Maya","Naomi","Alice","Serena","Daphne","Leah","Miriam"];
 const LAST_NAMES = ["Smith","Johnson","Brown","Taylor","Anderson","Thomas","Jackson","White","Harris","Martin","Thompson","Garcia","Martinez","Robinson","Clark","Rodriguez","Lewis","Walker","Hall","Allen","Young","King","Wright","Scott","Green","Baker","Adams","Nelson","Hill","Campbell","Mitchell","Carter","Roberts","Gonzalez","Perez","Edwards","Collins","Stewart","Sanchez","Morris","Rogers","Reed","Cook","Morgan","Bell","Murphy","Bailey","Rivera","Cooper","Richardson","Cox","Howard","Ward","Flores"];
 const CRYPTO_ALIASES = ["BlockKing","PumpMaster","CryptoWolf","FomoKing","Hodler","TraderJoe","BitHunter","AltcoinAce","ChainGuru","DeFiLord","MetaWhale","CoinSniper","YieldFarmer","NFTDegen","ChartWizard","TokenShark","AirdropKing","WhaleHunter","BullRider","BearBuster","SatoshiFan","GasSaver","MoonChaser","RektRecover","Nodesman","LiquidityLord","OnChainOwl"];
 const TITLES = ["Trader","Investor","HODLer","Analyst","Whale","Shark","Mooner","Scalper","SwingTrader","DeFi","Miner","Blockchain","NFT","Quant","Signals","Mentor","Founder","CTO","RiskMgr","Ops"];
 
-// ================= EMOJIS =================
+/* =====================================================
+   EMOJIS
+===================================================== */
 const EMOJIS = ["💸","🔥","💯","✨","😎","👀","📈","🚀","💰","🤑","🎯","🏆","🤖","🎉","🍀","📊","⚡","💎","👑","🦄","🧠","🔮","🪙","🥂","💡","🛸","📉","📱","💬","🙌","👏","👍","❤️","😂","😅","🤞","✌️","😴","🤩","😬","🤝","🧾","📌","🔔","⚠️","✅","❌","📎","🧩","🪙","🔗","🔒","🌕","🌑","🌟","🏁","💹","🏦","🧭","🧯"];
 
-// ================= SLANG =================
+/* =====================================================
+   SLANG
+===================================================== */
 const SLANG = {
   western:["bro","ngl","lowkey","fr","tbh","wild","solid move","bet","dope","lit","clutch","savage","meme","cheers","respect","hype","flex","mad","cap","no cap","real talk","yo","fam","legit","sick"],
   african:["my guy","omo","chai","no wahala","sharp move","gbam","yawa","sweet","jollof","palava","chop","fine boy","hustle","ehen","kolo","sisi","big man","on point","correct","naija","bros","guyz"],
@@ -48,7 +60,9 @@ const SLANG = {
   eastern:["comrade","strong move","not bad","serious play","da","top","nu","excellent","good work","correct","bravo","fine","nice move","pro","cheers"]
 };
 
-// ================= AVATAR SOURCES =================
+/* =====================================================
+   AVATAR SOURCES
+===================================================== */
 const AVATAR_SOURCES = [
   {type:"randomuser"}, {type:"pravatar"}, {type:"robohash"}, {type:"multiavatar"},
   {type:"dicebear",style:"avataaars"}, {type:"dicebear",style:"bottts"},
@@ -61,7 +75,9 @@ const AVATAR_SOURCES = [
   {type:"dicebear",style:"adventurer-neutral"}, {type:"ui-avatars"}
 ];
 
-// ================= AVATAR POOL =================
+/* =====================================================
+   AVATAR POOL
+===================================================== */
 let MIXED_AVATAR_POOL = [];
 function initializeAvatarPool(){
   MIXED_AVATAR_POOL = [];
@@ -84,11 +100,12 @@ function initializeAvatarPool(){
 }
 initializeAvatarPool();
 
-// ================= TRACKERS =================
-const UsedNames = new Set();
-const UsedAvatarURLs = new Set();
+/* =====================================================
+   TRACKERS
+===================================================== */
+const SyntheticPool = [];
 const AVATAR_PERSIST_KEY = "abrox_used_avatars_v7";
-
+const UsedAvatarURLs = new Set();
 (function(){ 
   try{ 
     const raw=localStorage.getItem(AVATAR_PERSIST_KEY); 
@@ -99,7 +116,9 @@ function saveUsedAvs(){ try{ localStorage.setItem(AVATAR_PERSIST_KEY,JSON.string
 setInterval(saveUsedAvs,1000*60*2);
 window.addEventListener("beforeunload",saveUsedAvs);
 
-// ================= UTILITIES =================
+/* =====================================================
+   UTILITIES
+===================================================== */
 function random(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 function maybe(p){ return Math.random()<p; }
 function rand(max=9999){ return Math.floor(Math.random()*max); }
@@ -108,7 +127,10 @@ function makeDicebearUrl(style,seed,size=300){ return `https://api.dicebear.com/
 function makeDeterministicUiAvatar(name,size=256){ const bg=colorFromName(name); return `https://ui-avatars.com/api/?name=${encodeURIComponent(name||"U")}&background=${bg}&color=fff&size=${size}`; }
 function colorFromName(name){ const h=hash32(String(name||"").toLowerCase()); const r=((h&0xFF0000)>>>16)&0xFF; const g=((h&0x00FF00)>>>8)&0xFF; const b=((h&0x0000FF)&0xFF); const rr=Math.min(220, Math.max(30, Math.floor((r+30)*0.9))); const gg=Math.min(220, Math.max(30, Math.floor((g+30)*0.9))); const bb=Math.min(220, Math.max(30, Math.floor((b+30)*0.9))); return ((rr<<16)|(gg<<8)|bb).toString(16).padStart(6,"0"); }
 
-// ================= PERSONA GENERATOR =================
+/* =====================================================
+   PERSONA GENERATOR
+===================================================== */
+const UsedNames = new Set();
 function buildUniqueName(gender){
   let base;
   if(maybe(0.18)){
@@ -170,12 +192,13 @@ function generateSyntheticPersona(){
   };
 }
 
-const SyntheticPool = [];
+/* =====================================================
+   INITIAL POOL
+===================================================== */
 const INITIAL_SYNC=Math.min(800, Math.floor(TOTAL_PERSONAS*0.3));
 let readyResolve;
 window.identity = window.identity || {};
 window.identity.ready = new Promise(resolve => { readyResolve = resolve; });
-
 for(let i=0;i<INITIAL_SYNC;i++) SyntheticPool.push(generateSyntheticPersona());
 (function fillRemaining(){ 
   const batch=500; 
@@ -188,6 +211,9 @@ for(let i=0;i<INITIAL_SYNC;i++) SyntheticPool.push(generateSyntheticPersona());
   setTimeout(batchFill,120); 
 })();
 
+/* =====================================================
+   HUMAN-LIKE COMMENTS
+===================================================== */
 function generateHumanComment(persona,baseText){
   let text=baseText||"Nice!";
   if(maybe(0.6)){ const s=[]; for(let i=0;i<rand(3)+1;i++) s.push(random(SLANG[persona.region]||[])); text=s.join(" ")+" "+text; }
@@ -206,6 +232,9 @@ function getRandomPersona(){
   return SyntheticPool.length?SyntheticPool[Math.floor(Math.random()*SyntheticPool.length)]:{ name:"Guest", avatar:makeDeterministicUiAvatar("G") }; 
 }
 
+/* =====================================================
+   EXPORT
+===================================================== */
 Object.assign(window.identity,{
   Admin, 
   getRandomPersona, 
