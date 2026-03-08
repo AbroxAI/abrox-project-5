@@ -125,7 +125,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
 ✅ To verify or contact admin, use the Contact Admin button below.`;
     const image = "assets/broadcast.jpg";
-    const timestamp = new Date(2025, 2, 14, 10, 0, 0);
+
+    // ✅ FIXED: Timestamp set to August 14, 2025
+    const timestamp = new Date(2025, 7, 14, 10, 0, 0);
 
     const id = await appendSafe(admin, "", { timestamp, type: "incoming", image, caption });
     return { id, image };
@@ -169,7 +171,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function postPinNotice() {
-    appendSafe({ name: "System", avatar: "assets/admin.jpg" }, "Admin pinned a message", { timestamp: new Date(), type: "incoming" });
+    // ✅ FIXED: Timestamp set to August 14, 2025
+    appendSafe({ name: "System", avatar: "assets/admin.jpg" }, "Admin pinned a message", { timestamp: new Date(2025, 7, 14, 10, 0, 0), type: "incoming" });
   }
 
   /* ==========================
