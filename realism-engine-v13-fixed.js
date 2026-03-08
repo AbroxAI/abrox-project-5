@@ -134,8 +134,15 @@ function injectHistoricalPool(oldPool){
 
 /* =====================================================
    COMMENT GENERATOR
+   **ALL TIMESTAMPS START AUGUST 14, 2025**
 ===================================================== */
-function generateTimestamp(daysBack=120){return new Date(Date.now()-Math.random()*daysBack*86400000);}
+const BASE_DATE = new Date(2025,7,14,10,0,0); // August 14, 2025
+
+function generateTimestamp(daysBack=120){
+    const offset = Math.random()*daysBack*86400000;
+    return new Date(BASE_DATE.getTime() - offset);
+}
+
 function generateComment(){
     const templates=[
         ()=>`Guys, ${random(TESTIMONIALS)}`,
@@ -157,7 +164,7 @@ function generateComment(){
 function generateJoiner(){
     const persona={ name:"User"+rand(1000,9999) };
     const welcomeText=random(JOINER_WELCOMES).replace("{user}",persona.name);
-    return { persona, text: welcomeText, timestamp:new Date(), type:"joiner" };
+    return { persona, text: welcomeText, timestamp:new Date(BASE_DATE), type:"joiner" };
 }
 
 async function simulateJoiner(minInterval=30000,maxInterval=120000){
@@ -178,7 +185,7 @@ async function generateThreadedJoinerReplies(joinItem){
         await window.queuedTyping(persona,replyText);
         const msgId=`realism_reply_${Date.now()}_${rand(9999)}`;
         window.TGRenderer.appendMessage(persona,replyText,{
-            timestamp:new Date(),
+            timestamp:new Date(BASE_DATE),
             type:"incoming",
             id:msgId,
             parentId: joinItem.id
@@ -218,7 +225,7 @@ async function postMessage(item){
     await window.queuedTyping(persona,text);
     const msgId=`realism_${item.type||"msg"}_${Date.now()}_${rand(9999)}`;
     window.TGRenderer.appendMessage(persona,text,{
-        timestamp:item.timestamp||new Date(),
+        timestamp:item.timestamp||new Date(BASE_DATE),
         type:item.type||"incoming",
         id:msgId
     });
