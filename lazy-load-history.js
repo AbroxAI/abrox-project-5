@@ -1,31 +1,19 @@
-// lazy-load-history.js — Full historical replay + v25 Ultra Live integration
+// full-history-loader-async-flood.js — async daily backfill with flood days, bubble previews, threaded replies, reactions
 (function(){
 "use strict";
 
-/* =====================================================
-   SETTINGS
-===================================================== */
-const HISTORY_SPEED_MIN = 30;   // min delay between messages in ms
-const HISTORY_SPEED_MAX = 120;  // max delay between messages in ms
-const MAX_HISTORY = 50000;      // max messages to replay
-const USE_REAL_TIMESTAMPS = true;
+const START_DATE = new Date(2025,7,14,10,0,0);
+const END_DATE = new Date();
 
-/* =====================================================
-   UTILS
-===================================================== */
-function rand(min,max){return Math.floor(Math.random()*(max-min)+min);}
-function maybe(p){return Math.random()<p;}
 function random(arr){return arr[Math.floor(Math.random()*arr.length)];}
-function delay(ms){return new Promise(r=>setTimeout(r,ms));}
+function maybe(p){return Math.random()<p;}
+function rand(min,max){return Math.floor(Math.random()*(max-min)+min);}
 function hash(str){let h=5381; for(let i=0;i<str.length;i++){h=((h<<5)+h)+str.charCodeAt(i);} return (h>>>0).toString(36);}
+const GENERATED=new Set();
+const QUEUE=[];
 
-/* =====================================================
-   DUPLICATE CHECK
-===================================================== */
-const GENERATED = new Set();
-const QUEUE = [];
 function mark(text){
-    const fp = hash(text.toLowerCase());
+    const fp=hash(text.toLowerCase());
     if(GENERATED.has(fp)) return false;
     GENERATED.add(fp);
     QUEUE.push(fp);
@@ -33,74 +21,116 @@ function mark(text){
     return true;
 }
 
-/* =====================================================
-   HISTORICAL REPLAY ENGINE
-===================================================== */
-async function replayHistoricalPool(oldPool){
-    if(!Array.isArray(oldPool) || oldPool.length===0) return;
-
-    // Sort by timestamp to preserve order
-    const poolCopy = oldPool.slice(0, MAX_HISTORY)
-        .sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp));
-
-    console.log(`[Realism] Replaying historical pool: ${poolCopy.length} messages`);
-
-    let lastTime = Date.now();
-    for(const item of poolCopy){
-        if(!item.text || !mark(item.text)) continue;
-
-        // Determine delay
-        const itemTime = USE_REAL_TIMESTAMPS ? new Date(item.timestamp).getTime() : Date.now();
-        let delayMs = Math.max(HISTORY_SPEED_MIN, Math.min(HISTORY_SPEED_MAX, itemTime - lastTime));
-        await delay(delayMs);
-        lastTime = itemTime;
-
-        await postHistoricalMessage(item);
-    }
-    console.log("[Realism] Historical replay finished");
+function timestampForDay(day){
+    const blocks=[
+        {start:6,end:10,weight:0.3},{start:11,end:14,weight:0.25},
+        {start:15,end:20,weight:0.35},{start:21,end:23,weight:0.05},{start:0,end:5,weight:0.05}
+    ];
+    let r=Math.random(), sum=0, block;
+    for(const b of blocks){sum+=b.weight; if(r<=sum){block=b; break;}}
+    if(!block) block=blocks[0];
+    const hour=rand(block.start,block.end+1), minute=rand(0,60), second=rand(0,60);
+    return new Date(day.getFullYear(),day.getMonth(),day.getDate(),hour,minute,second);
 }
 
-/* =====================================================
-   POST HISTORICAL MESSAGE
-===================================================== */
-async function postHistoricalMessage(item){
+function generateCommentForDay(day){
+    const templates=[
+        ()=>`Guys, ${random(TESTIMONIALS)}`,
+        ()=>`Anyone trading ${random(ASSETS)} on ${random(BROKERS)}?`,
+        ()=>`Signal for ${random(ASSETS)} ${random(TIMEFRAMES)} is ${random(RESULT_WORDS)}`,
+        ()=>`Closed ${random(ASSETS)} on ${random(TIMEFRAMES)} — ${random(RESULT_WORDS)}`,
+        ()=>`Scalped ${random(ASSETS)} on ${random(BROKERS)}, result ${random(RESULT_WORDS)}`
+    ];
+    let text=random(templates)();
+    if(maybe(0.35)) text+=" — "+random(["good execution","tight stop","wide stop","no slippage","perfect timing"]);
+    for(let i=0;i<rand(1,4);i++) text+=" "+random(EMOJIS);
+    let tries=0; while(!mark(text)&&tries<60){text+=" "+rand(999); tries++;}
+    return {text, timestamp: timestampForDay(day)};
+}
+
+function generateJoinerForDay(day){
+    const persona={name:"User"+rand(1000,9999)};
+    const text=random(JOINER_WELCOMES).replace("{user}",persona.name);
+    return {persona,text,timestamp:timestampForDay(day),type:"joiner"};
+}
+
+async function postMessage(item){
     if(!window.identity?.getRandomPersona || !window.TGRenderer?.appendMessage) return;
+    const persona=item.persona||window.identity.getRandomPersona();
+    if(!persona) return;
 
-    const persona = item.persona || window.identity.getRandomPersona();
-    const text = item.text;
-    const timestamp = USE_REAL_TIMESTAMPS ? (item.timestamp || new Date()) : new Date();
-    const msgId = `history_${Date.now()}_${rand(9999)}`;
+    let text=item.type==="joiner"?item.text:(Math.random()<0.45?generateRoleMessage(persona):item.text);
+    await window.queuedTyping(persona,text);
 
-    // Show typing before posting
-    await window.queuedTyping(persona, text);
-
-    // Post message
-    window.TGRenderer.appendMessage(persona, text, {
-        timestamp: timestamp,
-        type: item.type || "incoming",
-        id: msgId
+    const msgId=`realism_${item.type||"msg"}_${Date.now()}_${rand(9999)}`;
+    window.TGRenderer.appendMessage(persona,text,{
+        timestamp:item.timestamp,
+        type:item.type||"incoming",
+        id:msgId,
+        bubblePreview:true
     });
+    item.id=msgId;
+    if(maybe(0.3)) await window.realism.simulateReactions?.({id:msgId},rand(1,3));
+}
 
-    item.id = msgId;
-
-    // Inline reactions
-    if(maybe(0.4)) simulateReactions(msgId, rand(1,3));
-
-    // Threaded joiner replies if message is a joiner
-    if(item.type==="joiner" && window.realism?.generateThreadedJoinerReplies){
-        window.realism.generateThreadedJoinerReplies({id: msgId, persona: persona});
+async function generateThreadedJoinerReplies(joinItem){
+    const replyCount=rand(2,5);
+    for(let i=0;i<replyCount;i++){
+        const persona=window.identity.getRandomPersona();
+        if(!persona) continue;
+        const replyText=random(JOINER_REPLIES).replace("{user}",joinItem.persona.name);
+        await window.queuedTyping(persona,replyText);
+        const msgId=`realism_reply_${Date.now()}_${rand(9999)}`;
+        window.TGRenderer.appendMessage(persona,replyText,{
+            timestamp:joinItem.timestamp,
+            type:"incoming",
+            id:msgId,
+            parentId:joinItem.id,
+            bubblePreview:true
+        });
+        if(maybe(0.5)) await window.realism.simulateInlineReactions?.(msgId,rand(1,3));
+        await new Promise(r=>setTimeout(r,rand(400,1200)));
     }
 }
 
 /* =====================================================
-   REACTIONS
+   ASYNC TIMELINE SIMULATION WITH FLOOD DAYS
 ===================================================== */
-async function simulateReactions(messageId, count=1){
-    if(!window.TGRenderer?.appendReaction) return;
-    for(let i=0;i<count;i++){
-        const reaction = random(window.realism?.REACTIONS || ["👍","❤️","😂","😮"]);
-        window.TGRenderer.appendReaction(messageId, reaction);
-        await delay(rand(150,800));
+async function simulateTimelineAsync(batchSize=5, delay=50){
+    let day=new Date(START_DATE);
+    while(day<=END_DATE){
+        let messageCount;
+        if(Math.random()<0.05){ // 5% of days are flood/viral days
+            messageCount=rand(150,300);
+        } else {
+            const busyFactor=Math.random();
+            messageCount=busyFactor<0.3? rand(2,10) : busyFactor<0.7? rand(10,30) : rand(30,80);
+        }
+
+        for(let i=0;i<messageCount;i++){
+            if(maybe(0.15)){
+                const joiner=generateJoinerForDay(day);
+                await postMessage(joiner);
+                await generateThreadedJoinerReplies(joiner);
+            } else {
+                const comment=generateCommentForDay(day);
+                await postMessage(comment);
+            }
+            if(i%batchSize===0) await new Promise(r=>setTimeout(r,delay));
+        }
+        day.setDate(day.getDate()+1);
+        await new Promise(r=>setTimeout(r,delay*5));
+    }
+}
+
+/* =====================================================
+   POOL MANAGEMENT
+===================================================== */
+function ensurePool(min=10000){
+    window.realism.POOL=window.realism.POOL||[];
+    while(window.realism.POOL.length<min){
+        window.realism.POOL.push(generateCommentForDay(new Date()));
+        if(window.realism.POOL.length>50000) break;
     }
 }
 
@@ -109,27 +139,42 @@ async function simulateReactions(messageId, count=1){
 ===================================================== */
 function injectHistoricalPool(oldPool){
     if(!Array.isArray(oldPool)) return;
-    window.realism.POOL = window.realism.POOL || [];
     for(const item of oldPool){
-        if(item.text && mark(item.text)){
-            window.realism.POOL.push(item);
-        }
+        if(item.text && mark(item.text)) window.realism.POOL.push(item);
     }
 }
 
 /* =====================================================
-   PUBLIC API
+   INIT LOADER
 ===================================================== */
-window.realism.loadHistoricalPool = replayHistoricalPool;
-window.realism.injectHistoricalPool = injectHistoricalPool;
+async function initHistoryLoaderAsync(){
+    await waitForReady();
+    if(window.realism?.OLD_POOL) injectHistoricalPool(window.realism.OLD_POOL);
+    ensurePool(5000);
+    await simulateTimelineAsync(); // fully async timeline with flood days
+}
 
 /* =====================================================
-   AUTO LOAD HISTORICAL POOL
+   WAIT FOR RENDERER & IDENTITY
 ===================================================== */
-(async function autoLoadHistoricalPool(){
-    if(window.realism?.OLD_POOL){
-        injectHistoricalPool(window.realism.OLD_POOL);
-        await replayHistoricalPool(window.realism.OLD_POOL);
+async function waitForReady(timeout=30000){
+    let waited=0;
+    while((!window.identity?.getRandomPersona || !window.TGRenderer?.appendMessage || !window.queuedTyping) && waited<timeout){
+        await new Promise(r=>setTimeout(r,50));
+        waited+=50;
     }
-})();
+    return true;
+}
+
+/* =====================================================
+   EXPORTS
+===================================================== */
+window.realism.injectHistoricalPool=injectHistoricalPool;
+window.realism.postMessage=postMessage;
+window.realism.generateThreadedJoinerReplies=generateThreadedJoinerReplies;
+
+/* =====================================================
+   START LOADER
+===================================================== */
+initHistoryLoaderAsync();
 })();
