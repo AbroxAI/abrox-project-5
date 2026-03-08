@@ -1,193 +1,173 @@
-// realism-engine-v15-fixed-extended.js — FINAL + AUTO-REPLY & PINNED CAPTIONS
-(function(){
+// realism-engine-v15-fixed.js — full simulation engine with randomness
+window.realism = (function(){
 "use strict";
 
-/* =====================================================
-   CONFIG
-===================================================== */
-const CFG = window.REALISM_CONFIG || {};
-const MIN_INTERVAL = CFG.MIN_INTERVAL_MS || 20000;
-const MAX_INTERVAL = CFG.MAX_INTERVAL_MS || 60000;
-const REACTION_PROB = CFG.REACTION_PROB || 0.35;
-const TREND_PROB = CFG.TREND_SPIKE_PROB || 0.02;
-const AUTO_REPLY_PROB = CFG.AUTO_REPLY_PROB || 0.25;
-const PINNED_PROB = CFG.PINNED_PROB || 0.05;
+// references
+const container = document.getElementById("tg-comments-container");
 
-/* =====================================================
-   DATA POOLS
-===================================================== */
-const ASSETS=[
-"EUR/USD","USD/JPY","GBP/USD","AUD/USD","BTC/USD","ETH/USD","USD/CHF","EUR/JPY","NZD/USD",
-"US30","NAS100","SPX500","DAX30","FTSE100","GOLD","SILVER","WTI","BRENT",
-"ADA/USD","SOL/USD","DOGE/USD","DOT/USD","LINK/USD","MATIC/USD","LUNC/USD","AVAX/USD",
-"XRP/USD","ATOM/USD","BNB/USD","DOGE/BTC","ETH/BTC","SOL/BTC"
-];
+// -----------------------------
+// CONFIGURATION (from window.REALISM_CONFIG)
+const cfg = window.REALISM_CONFIG || {
+  TOTAL_PERSONAS: 1200,
+  INITIAL_POOL: 400,
+  POOL_MIN: 300,
+  POOL_MAX: 3000,
+  DEDUP_LIMIT: 200000,
+  MIN_INTERVAL_MS: 20000,
+  MAX_INTERVAL_MS: 60000,
+  REACTION_TICK_MS: 30000,
+  TREND_SPIKE_PROB: 0.02
+};
 
-const BROKERS=[
-"IQ Option","Binomo","Pocket Option","Deriv","Olymp Trade","Binary.com","eToro","Plus500",
-"IG","XM","FXTM","Pepperstone","IC Markets","Bybit","Binance","OKX","Kraken",
-"Coinbase","Huobi","Bitfinex","Kraken Futures"
-];
+// state
+const state = {
+  started: false,
+  active: [],
+  messageCount: 0,
+  trendSpikes: []
+};
 
-const TIMEFRAMES=["M1","M5","M15","M30","H1","H4","D1","W1"];
+// -----------------------------
+// HELPER RANDOM
+function randomInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+function randomChoice(arr){ return arr[randomInt(0,arr.length-1)]; }
 
-const RESULT_WORDS=[
-"green","red","profit","loss","win","missed entry","recovered","scalped nicely","small win",
-"big win","moderate loss","loss recovered","double profit","micro win","stopped loss","hedged correctly"
-];
+// -----------------------------
+// QUEUED TYPING
+async function queuedTyping(persona, message){
+  if(!persona?.name) return;
+  document.dispatchEvent(new CustomEvent("headerTyping",{detail:{name:persona.name}}));
+  const duration = window.TGRenderer?.calculateTypingDuration?.(message) || 1200;
+  await new Promise(r=>setTimeout(r,duration));
+}
 
-const TESTIMONIALS=[
-"Made $450 in 2 hours using Abrox","Closed 3 trades, all green today",
-"Recovered a losing trade thanks to Abrox","7 days straight of consistent profit",
-"Signal timing was perfect today","Scalped 5 trades successfully","Entry late but profitable",
-"Big win on NAS100 today","Missed entry but recovered","Consistent profit every day",
-"Small win but solid","Double profit today","Hedged correctly for safe trade","Micro win achieved"
-];
+// -----------------------------
+// MESSAGE GENERATION
+function generateMessage(persona){
+  const phrases = [
+    "Hello everyone!","Check this out!","What do you think?","Amazing!","🚀💰","LOL","Can anyone help?","🔥🔥🔥"
+  ];
+  const emojis = ["😎","😂","👍","💡","🤖","💰","🚀","✅"];
+  let text = randomChoice(phrases);
+  if(Math.random()<0.4) text += " " + randomChoice(emojis);
+  return text;
+}
 
-const EMOJIS=["💸","🔥","💯","✨","📈","🚀","💰","🎯","🏆","😎","👀","🤖","🎉","🍀","📊","📉","💹"];
+// -----------------------------
+// SIMULATE RANDOM ACTIVITY
+async function simulate(){
+  if(state.started) return;
+  state.started = true;
 
-/* =====================================================
-   UTIL
-===================================================== */
-function random(arr){return arr[Math.floor(Math.random()*arr.length)];}
-function maybe(p){return Math.random()<p;}
-function rand(max=9999){return Math.floor(Math.random()*max);}
+  while(true){
+    // pick random persona
+    const persona = window.identity.getRandomPersona();
+    if(!persona) break;
 
-/* =====================================================
-   MEMORY
-===================================================== */
-const GENERATED=new Set();
-const QUEUE=[];
-function hash(str){let h=5381;for(let i=0;i<str.length;i++){h=((h<<5)+h)+str.charCodeAt(i);}return (h>>>0).toString(36);}
-function mark(text){const fp=hash(text.toLowerCase());if(GENERATED.has(fp)) return false;GENERATED.add(fp);QUEUE.push(fp);while(QUEUE.length>50000){GENERATED.delete(QUEUE.shift());}return true;}
+    const msg = generateMessage(persona);
+    await queuedTyping(persona, msg);
 
-/* =====================================================
-   COMMENT GENERATOR WITH AUTO-REPLY & PINNED CAPTION
-===================================================== */
-function generateComment(previousMessages=[]) {
-    const templates=[
-        ()=>`Guys ${random(TESTIMONIALS)}`,
-        ()=>`Anyone trading ${random(ASSETS)} on ${random(BROKERS)}?`,
-        ()=>`Signal for ${random(ASSETS)} ${random(TIMEFRAMES)} is ${random(RESULT_WORDS)}`,
-        ()=>`Closed ${random(ASSETS)} on ${random(TIMEFRAMES)} — ${random(RESULT_WORDS)}`,
-        ()=>`Scalped ${random(ASSETS)} on ${random(BROKERS)} result ${random(RESULT_WORDS)}`
-    ];
-    
-    let text=random(templates)();
+    // append message
+    window.TGRenderer.appendMessage(persona, msg, {type:'incoming'});
+    state.messageCount++;
 
-    // Auto reply: 25% chance
-    let replyToId = null;
-    if (previousMessages.length && maybe(AUTO_REPLY_PROB)) {
-        const target = random(previousMessages);
-        replyToId = target.id;
-        text = `@${target.persona?.name||'User'} ${text}`;
+    // randomly add reactions
+    if(Math.random()<0.3){
+      const reaction = randomChoice(["👍","❤️","😂","🔥","🚀"]);
+      window.TGRenderer.addReaction('msg_' + (Date.now()-randomInt(1,50)), reaction);
     }
 
-    // Optional extra commentary
-    if(maybe(0.35)) text+=" "+random(["good execution","perfect timing","tight stop","no slippage","wide stop"]);
-    if(maybe(0.45)) text+=" "+random(EMOJIS);
-
-    // Deduplicate
-    let tries=0;
-    while(!mark(text) && tries<20){text+=" "+rand(999);tries++;}
-
-    // Reactions
-    let reactions=[];
-    if(maybe(REACTION_PROB)){
-        const count=1+Math.floor(Math.random()*3);
-        reactions=Array.from({length:count},()=>({emoji: random(EMOJIS), count: 1+Math.floor(Math.random()*5)}));
+    // trend spike
+    if(Math.random()<cfg.TREND_SPIKE_PROB){
+      const spikeCount = randomInt(2,5);
+      for(let i=0;i<spikeCount;i++){
+        const p = window.identity.getRandomPersona();
+        const t = generateMessage(p);
+        await queuedTyping(p,t);
+        window.TGRenderer.appendMessage(p,t,{type:'incoming'});
+      }
     }
 
-    // Trend flag
-    const trending = maybe(TREND_PROB);
-
-    // Optional pinned caption
-    let caption = null;
-    if(maybe(PINNED_PROB)) {
-        caption = text + " (Pinned message)";
-    }
-
-    return {text, reactions, trending, replyToId, caption};
+    // wait random interval before next
+    const wait = randomInt(cfg.MIN_INTERVAL_MS,cfg.MAX_INTERVAL_MS);
+    await new Promise(r=>setTimeout(r,wait));
+  }
 }
 
-/* =====================================================
-   WAIT FOR SYSTEM
-===================================================== */
-async function waitForReady(){
-    while(!window.identity?.getRandomPersona || !window.TGRenderer?.appendMessage || !window.queuedTyping){
-        await new Promise(r=>setTimeout(r,50));
-    }
+// -----------------------------
+// ADMIN BROADCAST & PIN
+// -----------------------------
+async function postAdminBroadcast(){
+  const admin = window.identity.Admin || { name:"Admin", avatar:"assets/admin.jpg", isAdmin:true };
+  const caption = `📌 Group Rules
+
+1️⃣ New members are read-only until verified.
+2️⃣ Admins do NOT DM directly.
+3️⃣ 🚫 No screenshots in chat.
+4️⃣ ⚠️ Ignore unsolicited messages.
+
+✅ To verify or contact admin, use the Contact Admin button below.`;
+
+  const image = "assets/broadcast.jpg";
+  const timestamp = new Date(2025,2,14,10,0,0);
+
+  const id = await window.TGRenderer.appendMessage(admin,"",{timestamp,type:"incoming",image,caption});
+  return {id,image};
 }
 
-/* =====================================================
-   POST MESSAGE
-===================================================== */
-async function postMessage(item){
-    await waitForReady();
-    const persona=window.identity.getRandomPersona();
-    if(!persona) return;
-    await window.queuedTyping(persona,item.text);
+function showPinBanner(image,pinnedMessageId){
+  const pinBanner = document.getElementById("tg-pin-banner");
+  if(!pinBanner) return;
+  pinBanner.innerHTML = "";
 
-    window.TGRenderer.appendMessage(
-        persona,
-        item.text,
-        {
-            timestamp:new Date(),
-            type:"incoming",
-            id:`real_${Date.now()}_${rand(9999)}`,
-            reactions:item.reactions,
-            trending:item.trending,
-            replyToId:item.replyToId,
-            caption:item.caption
-        }
-    );
+  const img = document.createElement("img");
+  img.src = image;
+  img.onerror = ()=>img.src="assets/admin.jpg";
+
+  const text = document.createElement("div");
+  text.className="tg-pin-text";
+  text.textContent="📌 Group Rules";
+
+  const blueBtn = document.createElement("button");
+  blueBtn.className="pin-btn";
+  blueBtn.textContent="View Pinned";
+  blueBtn.onclick=()=>pinnedMessageId && window.TGRenderer.jumpToMessage(pinnedMessageId);
+
+  const adminBtn = document.createElement("a");
+  adminBtn.className="glass-btn";
+  adminBtn.href=window.CONTACT_ADMIN_LINK || "https://t.me/";
+  adminBtn.target="_blank";
+  adminBtn.rel="noopener";
+  adminBtn.textContent="Contact Admin";
+
+  const btnContainer = document.createElement("div");
+  btnContainer.className="pin-btn-container";
+  btnContainer.appendChild(blueBtn);
+  btnContainer.appendChild(adminBtn);
+
+  pinBanner.appendChild(img);
+  pinBanner.appendChild(text);
+  pinBanner.appendChild(btnContainer);
+
+  pinBanner.classList.remove("hidden");
+  requestAnimationFrame(()=>pinBanner.classList.add("show"));
 }
 
-/* =====================================================
-   CROWD SIM
-===================================================== */
-async function simulateCrowd(count=5){
-    const prevMessages = [];
-    for(let i=0;i<count;i++){
-        const item = generateComment(prevMessages);
-        const msgId = await postMessage(item);
-        prevMessages.push({...item, id: msgId, persona: window.identity.getRandomPersona()});
-        await new Promise(r=>setTimeout(r,400+Math.random()*800));
-    }
+function postPinNotice(){
+  const sysPersona = {name:"System",avatar:"assets/admin.jpg"};
+  window.TGRenderer.appendMessage(sysPersona,"Admin pinned a message",{type:"incoming",timestamp:new Date()});
 }
 
-/* =====================================================
-   SCHEDULER
-===================================================== */
-let started=false;
-function schedule(){
-    const delay=MIN_INTERVAL+Math.random()*(MAX_INTERVAL-MIN_INTERVAL);
-    setTimeout(async()=>{
-        await simulateCrowd(1);
-        schedule();
-    },delay);
-}
-
-/* =====================================================
-   MAIN
-===================================================== */
-function simulate(){
-    if(started) return;
-    started=true;
-    simulateCrowd(10);
-    schedule();
-}
-
-/* =====================================================
-   PUBLIC API
-===================================================== */
-window.realism=window.realism||{};
-window.realism.simulate=simulate;
-window.realism.simulateCrowd=simulateCrowd;
-window.realism.generateReply=function(prevMessages){return generateComment(prevMessages).text;};
-window.realism.postFallbackReply=async function(){
-    const text=random(["Nice one 🔥","Interesting","Exactly","Good point","Agreed"]);
-    await postMessage({text,reactions:[],trending:false});
+// -----------------------------
+// EXPOSE
+// -----------------------------
+return {
+  simulate,
+  queuedTyping,
+  postAdminBroadcast,
+  showPinBanner,
+  postPinNotice,
+  started:false
 };
 
 })();
