@@ -1,20 +1,43 @@
 (async function(){
 "use strict";
 
+/* =====================================================
+CONFIG
+===================================================== */
 const START_DATE = new Date(2025,7,14);
-const END_DATE = new Date(Date.now()-86400000);
-const TOTAL_HISTORICAL = 50000;
-const BATCH_SIZE = 500;
+const END_DATE = new Date(Date.now()-86400000); // yesterday
+const TOTAL_HISTORICAL = 50000; // total historical messages
+const CHUNK_SIZE = 200;          // messages per batch
+const CHUNK_DELAY = 50;          // ms delay per chunk
 
 let container = document.getElementById('tg-comments-container');
 let jumpIndicator = document.getElementById('tg-jump-indicator');
 let jumpText = document.getElementById('tg-jump-text');
 let unseenCount = 0;
 
-function rand(a,b){return Math.floor(Math.random()*(b-a)+a);}
-function maybe(p){return Math.random()<p;}
-function random(arr){return arr[Math.floor(Math.random()*arr.length)];}
+// create a progress bar element
+let progressBar = document.createElement('div');
+progressBar.style.position = 'fixed';
+progressBar.style.top = '10px';
+progressBar.style.right = '10px';
+progressBar.style.background = 'rgba(0,0,0,0.8)';
+progressBar.style.color = '#fff';
+progressBar.style.padding = '6px 12px';
+progressBar.style.borderRadius = '6px';
+progressBar.style.zIndex = 9999;
+progressBar.textContent = 'Loading historical messages... 0 / ' + TOTAL_HISTORICAL;
+document.body.appendChild(progressBar);
 
+/* =====================================================
+UTILS
+===================================================== */
+function rand(a,b){ return Math.floor(Math.random()*(b-a)+a); }
+function maybe(p){ return Math.random()<p; }
+function random(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+/* =====================================================
+SCROLL / JUMP
+===================================================== */
 function updateJump(){ 
     if(!jumpText) return;
     jumpText.textContent = unseenCount>1 ? `New messages · ${unseenCount}` : 'New messages';
@@ -28,6 +51,9 @@ function handleScroll(){
 }
 container.addEventListener('scroll', handleScroll);
 
+/* =====================================================
+TIMESTAMP & ACTIVITY
+===================================================== */
 let lastTime = 0;
 function timestamp(day){
     let t = new Date(day.getFullYear(), day.getMonth(), day.getDate(), rand(7,22), rand(0,60), rand(0,60));
@@ -35,7 +61,6 @@ function timestamp(day){
     lastTime = t.getTime();
     return t;
 }
-
 function activity(){ 
     const r=Math.random(); 
     if(r<0.45) return rand(3,8); 
@@ -44,6 +69,9 @@ function activity(){
     return rand(150,220); 
 }
 
+/* =====================================================
+GENERATE HISTORICAL TIMELINE
+===================================================== */
 function generateTimeline(total){
     const items=[];
     let day = new Date(START_DATE);
@@ -63,57 +91,72 @@ function generateTimeline(total){
     return items.sort((a,b)=>a.timestamp-b.timestamp);
 }
 
-// --- fully synced post via realism engine
+/* =====================================================
+POST HISTORICAL MESSAGE (SYNC WITH REALISM POOL)
+===================================================== */
 async function postHistoric(item){
     const persona = item.persona || window.identity.getRandomPersona();
-    const text = item.type === "join" ? `${persona.name} joined the group` :
-        window.realism.generateConversation?.()?.text || "Historic message";
+    const text = item.type === "join" 
+        ? `${persona.name} joined the group` 
+        : window.realism.generateConversation?.()?.text || "Historic message";
 
-    // send through realism engine to ensure reactions & threaded replies
-    await window.realism.postMessage({
-        persona,
-        text,
-        timestamp: item.timestamp,
-        type: item.type==="join"?"joiner":"historic"
-    });
+    // push to realism pool
+    window.realism.POOL = window.realism.POOL || [];
+    window.realism.POOL.push({ text, timestamp: item.timestamp, persona });
+
+    // prepend to renderer
+    const msgId = `hist_${Date.now()}_${rand(9999)}`;
+    window.TGRenderer.prependMessage(persona, text, { timestamp: item.timestamp, type:"historic", id: msgId });
+    item.id = msgId;
+
+    // threaded replies for joiners
+    if(item.type === "join" && window.realism.generateThreadedJoinerReplies){
+        await window.realism.generateThreadedJoinerReplies({ persona, id: msgId });
+    }
 }
 
-async function preloadHistory(){
+/* =====================================================
+LOAD HISTORY IN CHUNKS WITH PROGRESS
+===================================================== */
+async function loadHistoryInChunks(){
     const timeline = generateTimeline(TOTAL_HISTORICAL);
-    for(let i=0; i<timeline.length; i+=BATCH_SIZE){
-        const batch = timeline.slice(i,i+BATCH_SIZE);
-        for(const item of batch){
-            await postHistoric(item);
-        }
-        // small delay to allow TGRenderer and realism engine to catch up
-        await new Promise(r=>setTimeout(r,50));
+    for(let i=0; i<timeline.length; i+=CHUNK_SIZE){
+        const chunk = timeline.slice(i, i+CHUNK_SIZE);
+        await Promise.all(chunk.map(postHistoric));
+        progressBar.textContent = `Loading historical messages... ${Math.min(i+CHUNK_SIZE, TOTAL_HISTORICAL)} / ${TOTAL_HISTORICAL}`;
+        await new Promise(r=>setTimeout(r, CHUNK_DELAY));
     }
     container.scrollTop = 0;
-    console.log(`✅ Full historical chat fully rendered and synced with realism pool`);
+    progressBar.textContent = '✅ Historical chat fully loaded';
+    console.log(`✅ Full historical chat loaded (${timeline.length} messages)`);
 }
 
-// --- live chat
+/* =====================================================
+LIVE CHAT
+===================================================== */
 async function liveMessage(){
     const convo = window.realism.generateConversation?.() || {text:"", persona:window.identity.getRandomPersona()};
     await window.queuedTyping(convo.persona, convo.text);
     const scrollAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 80;
-    window.TGRenderer?.appendMessage?.(
-        convo.persona, convo.text, {timestamp:new Date(), type:"incoming", bubblePreview:true}
-    );
+    window.TGRenderer.appendMessage(convo.persona, convo.text, {timestamp:new Date(), type:"incoming", bubblePreview:true});
     if(scrollAtBottom){ container.scrollTop = container.scrollHeight; }
     else { unseenCount++; updateJump(); showJump(); }
 }
 
-// --- ensure realism pool
+/* =====================================================
+ENSURE REALISM POOL
+===================================================== */
 function ensurePool(min=10000){
     window.realism.POOL = window.realism.POOL || [];
-    while(window.realism.POOL.length<min){
+    while(window.realism.POOL.length < min){
         window.realism.POOL.push(window.realism.generateComment());
         if(window.realism.POOL.length>50000) break;
     }
 }
 
-// --- burst crowd
+/* =====================================================
+CROWD BURST
+===================================================== */
 async function simulateCrowdBurst(total=150){
     ensurePool(total);
     while(total>0 && window.realism.POOL.length>0){
@@ -124,29 +167,41 @@ async function simulateCrowdBurst(total=150){
     }
 }
 
-// --- wait for everything ready
-async function waitForReady(){
-    while(!window.identity?.SyntheticPool?.length || !window.TGRenderer?.appendMessage || !window.queuedTyping || !window.realism?.simulate || !window.realism?.postMessage){
+/* =====================================================
+INITIALIZATION
+===================================================== */
+async function init(){
+    // Wait for core systems
+    while(!window.identity?.SyntheticPool?.length || !window.TGRenderer?.prependMessage || !window.TGRenderer?.appendMessage || !window.queuedTyping || !window.realism?.simulate){
         await new Promise(r=>setTimeout(r,50));
     }
-}
 
-// --- init
-async function init(){
-    await waitForReady();
+    // Inject old pool if any
     if(window.realism?.OLD_POOL) window.realism.injectHistoricalPool(window.realism.OLD_POOL);
 
-    // fully preload historical messages through realism engine
-    await preloadHistory();
+    // Load historical in chunks with progress
+    await loadHistoryInChunks();
 
+    // Ensure realism pool
     ensurePool(20000);
+
+    // Initial burst crowd
     simulateCrowdBurst(200);
+
+    // Start live messages
     setInterval(liveMessage, rand(12000,40000));
+
+    // Start background realism engine
     window.realism.simulate();
+
+    // Start joiners
     window.realism.simulateJoiner(45000,120000);
 
-    console.log("✅ Full historical + realism pool + live chat + burst + threaded replies active");
+    console.log("✅ Fully synced: historical + full realism pool + live + burst + threaded replies");
 }
 
+/* =====================================================
+START
+===================================================== */
 init();
 })();
