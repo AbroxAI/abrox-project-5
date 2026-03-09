@@ -1,330 +1,124 @@
-// realism-history-loader-v2-advanced.js
 (function(){
 "use strict";
 
-/* =====================================================
-CONFIG
-===================================================== */
-const START_DATE = new Date(2025,7,14);
-const END_DATE = new Date();
+const SCROLL_BATCH_SIZE = 100;
+let loading = false;
+let liveInterval = null;
 
-const TARGET_MESSAGES = 8000;
-const CHUNK_SIZE = 90;
-
-/* =====================================================
-UTILS
-===================================================== */
-function rand(min,max){ return Math.floor(Math.random()*(max-min)+min); }
-function maybe(p){ return Math.random()<p; }
-function random(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
-
-/* =====================================================
-DOM
-===================================================== */
-let container;
-
-/* =====================================================
-TIMESTAMP ENGINE
-===================================================== */
-let lastTime = 0;
-
-function timestamp(day){
-
- let t = new Date(
-  day.getFullYear(),
-  day.getMonth(),
-  day.getDate(),
-  rand(6,23),
-  rand(0,60),
-  rand(0,60)
- );
-
- if(t.getTime() <= lastTime){
-  t = new Date(lastTime + rand(12000,90000));
- }
-
- lastTime = t.getTime();
- return t;
+// Simulate typing for a persona
+async function simulateTyping(persona, text){
+    if(window.queuedTyping) return window.queuedTyping(persona, text);
+    return new Promise(r => setTimeout(r, Math.min(300 + text.length*20, 1200)));
 }
 
-/* =====================================================
-ACTIVITY MODEL
-===================================================== */
-function activity(hour){
-
- if(hour < 7) return rand(0,3);
- if(hour < 12) return rand(10,25);
- if(hour < 18) return rand(30,80);
- if(hour < 22) return rand(40,120);
-
- return rand(5,20);
+// Pick a random historical message to reply to (for realism)
+function pickRandomReplyTarget(pool){
+    if(!pool.length) return null;
+    const recent = pool.slice(-50); // limit to recent 50 for relevance
+    return recent[Math.floor(Math.random()*recent.length)];
 }
 
-/* =====================================================
-VIRAL BURST
-===================================================== */
-function maybeBurst(){
+// Post a single message with full realism
+async function postRealismMessage(item, pool){
+    // 50% chance live messages reply to a historical one
+    if(!item.parentId && pool && pool.length && Math.random()<0.5){
+        const target = pickRandomReplyTarget(pool);
+        if(target){
+            item.parentId = target.id;
+            item.replyToText = target.text;
+        }
+    }
 
- if(!maybe(0.06)) return 0;
+    if(item.type === "joiner"){
+        await window.TGRenderer.appendJoinSticker([item.persona]);
+    }
 
- return rand(8,20);
+    await simulateTyping(item.persona || window.identity.getRandomPersona(), item.text);
+    await window.realism.postMessage(item);
+    if(item.type === "joiner"){
+        await window.realism.generateThreadedJoinerReplies(item);
+    }
 }
 
-/* =====================================================
-TIMELINE
-===================================================== */
-let timeline=[];
-let currentIndex=0;
+// Load a batch of messages progressively
+async function loadBatch(batch, pool){
+    for(const item of batch){
+        await postRealismMessage(item, pool);
+        await new Promise(r => setTimeout(r, 50 + Math.random()*150));
+    }
+}
 
-function generateTimeline(){
+// Prepare full history pool
+async function prepareHistory(totalCount = 15000){
+    if(!window.realism?.POOL) return [];
+    if(window.realism.ensurePool) window.realism.ensurePool(totalCount);
 
- const items=[];
- let day=new Date(START_DATE);
+    const POOL = window.realism.POOL;
+    POOL.sort((a,b)=>b.timestamp - a.timestamp); // recent-first
+    return POOL.splice(0, totalCount);
+}
 
- while(day<=END_DATE && items.length<TARGET_MESSAGES){
+// Inject live messages dynamically
+function startLiveInjection(pool){
+    if(liveInterval) clearInterval(liveInterval);
+    liveInterval = setInterval(async ()=>{
+        const item = window.realism.POOL.shift();
+        if(item){
+            await postRealismMessage(item, pool);
+        }
+    }, 5000 + Math.random()*5000); // every 5–10s
+}
 
-  const hour = rand(6,22);
-  const baseActivity = activity(hour);
-  const burst = maybeBurst();
+// Progressive scroll + auto-load + live simulation
+async function setupThreadedHybridLoader(totalCount = 15000){
+    const history = await prepareHistory(totalCount);
+    if(!history.length) return;
 
-  const count = baseActivity + burst;
+    const container = document.getElementById("tg-comments-container");
+    if(!container) return;
 
-  for(let i=0;i<count;i++){
+    // Initial batch
+    await loadBatch(history.splice(0, SCROLL_BATCH_SIZE), history);
 
-   const time = timestamp(day);
-
-   if(maybe(0.08)){
-
-    const persona = window.identity.getRandomPersona();
-
-    items.push({
-     type:"join",
-     persona,
-     timestamp:time,
-     id:"join_"+time.getTime()+"_"+i
+    // Scroll-based progressive loading
+    container.addEventListener("scroll", async ()=>{
+        if(loading) return;
+        const distance = container.scrollHeight - container.scrollTop - container.clientHeight;
+        if(distance < 300 && history.length){
+            loading = true;
+            const batch = history.splice(0, SCROLL_BATCH_SIZE);
+            await loadBatch(batch, history);
+            loading = false;
+        }
     });
 
-   }else{
-
-    const convo = window.realism.generateConversation
-      ? window.realism.generateConversation()
-      : {text:"Historic message"};
-
-    const persona = convo.persona || window.identity.getRandomPersona();
-
-    items.push({
-     type:"chat",
-     persona,
-     text:convo.text,
-     timestamp:time,
-     id:"msg_"+time.getTime()+"_"+i
-    });
-
-   }
-
-   if(items.length>=TARGET_MESSAGES) break;
-
-  }
-
-  day.setDate(day.getDate()+1);
- }
-
- timeline = items.sort((a,b)=>a.timestamp-b.timestamp);
-
- currentIndex = timeline.length;
+    // Start live message injection
+    startLiveInjection(history);
 }
 
-/* =====================================================
-MESSAGE MEMORY
-===================================================== */
-let lastMessages=[];
-
-function rememberMessage(msg){
- lastMessages.push(msg);
- if(lastMessages.length>40) lastMessages.shift();
+// Wait for all engines ready
+async function waitForEngineReady(timeout = 30000){
+    let waited = 0;
+    while((!window.realism?.postMessage || !window.TGRenderer?.appendMessage || !window.identity?.getRandomPersona) && waited < timeout){
+        await new Promise(r => setTimeout(r,50));
+        waited += 50;
+    }
+    return true;
 }
 
-function randomPrevious(){
- if(!lastMessages.length) return null;
- return random(lastMessages);
+// Auto-init threaded hybrid loader
+async function initThreadedHybridLoader(){
+    await waitForEngineReady();
+    setupThreadedHybridLoader(15000);
 }
 
-/* =====================================================
-IMAGE GENERATOR
-===================================================== */
-function maybeImage(){
+// PUBLIC API
+window.historyLoader = {
+    loadFullSyncedHistory: setupThreadedHybridLoader,
+    initHybridLoader: initThreadedHybridLoader
+};
 
- if(!maybe(0.05)) return null;
-
- return "https://picsum.photos/seed/"+rand(1,9999)+"/300/200";
-}
-
-/* =====================================================
-REACTIONS
-===================================================== */
-const REACTIONS=["👍","🔥","💯","👏","❤️","😂","🚀"];
-
-function applyReactions(id){
-
- if(!maybe(0.28)) return;
-
- const count = rand(1,4);
-
- for(let i=0;i<count;i++){
-  window.TGRenderer.appendReaction(id,random(REACTIONS));
- }
-}
-
-/* =====================================================
-LOAD OLDER
-===================================================== */
-async function loadOlder(){
-
- if(currentIndex<=0) return;
-
- const previousHeight = container.scrollHeight;
-
- const start=Math.max(0,currentIndex-CHUNK_SIZE);
- const chunk=timeline.slice(start,currentIndex);
-
- for(const item of chunk){
-
-  if(item.type==="join"){
-
-   window.TGRenderer.appendJoinSticker([item.persona]);
-
-   continue;
-
-  }
-
-  const opts={
-   id:item.id,
-   timestamp:item.timestamp,
-   type:"incoming"
-  };
-
-  const prev=randomPrevious();
-
-  if(prev && maybe(0.18)){
-   opts.replyToId = prev.id;
-   opts.replyToText = prev.text;
-  }
-
-  const image = maybeImage();
-
-  if(image){
-   opts.image=image;
-   opts.caption=item.text;
-  }
-
-  const id = window.TGRenderer.prependMessage(
-   item.persona,
-   item.text,
-   opts
-  );
-
-  applyReactions(id);
-
-  rememberMessage({id,text:item.text});
-
- }
-
- currentIndex=start;
-
- const newHeight=container.scrollHeight;
- container.scrollTop += (newHeight-previousHeight);
-}
-
-/* =====================================================
-INITIAL HISTORY
-===================================================== */
-async function preload(){
-
- const start=Math.max(0,timeline.length-CHUNK_SIZE);
- const chunk=timeline.slice(start);
-
- for(const item of chunk){
-
-  if(item.type==="join"){
-
-   window.TGRenderer.appendJoinSticker([item.persona]);
-   continue;
-
-  }
-
-  const opts={
-   id:item.id,
-   timestamp:item.timestamp,
-   type:"incoming"
-  };
-
-  const prev=randomPrevious();
-
-  if(prev && maybe(0.18)){
-   opts.replyToId=prev.id;
-   opts.replyToText=prev.text;
-  }
-
-  const image = maybeImage();
-
-  if(image){
-   opts.image=image;
-   opts.caption=item.text;
-  }
-
-  const id = window.TGRenderer.appendMessage(
-   item.persona,
-   item.text,
-   opts
-  );
-
-  applyReactions(id);
-
-  rememberMessage({id,text:item.text});
-
- }
-
- currentIndex=start;
-
- container.scrollTop = container.scrollHeight;
-}
-
-/* =====================================================
-SCROLL
-===================================================== */
-function handleScroll(){
-
- if(container.scrollTop < 120){
-  loadOlder();
- }
-
-}
-
-/* =====================================================
-INIT
-===================================================== */
-async function init(){
-
- while(
-  !window.TGRenderer?.appendMessage ||
-  !window.identity?.getRandomPersona ||
-  !window.realism
- ){
-  await new Promise(r=>setTimeout(r,50));
- }
-
- container=document.getElementById("tg-comments-container");
-
- container?.addEventListener("scroll",handleScroll);
-
- generateTimeline();
-
- await preload();
-
- console.log("🚀 Advanced History Loader v2 ready");
-
-}
-
-init();
+// Auto-init (optional)
+// initThreadedHybridLoader();
 
 })();
