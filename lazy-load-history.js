@@ -1,4 +1,4 @@
-// realism-history-loader-v8-realistic.js — Full loader with realistic reactions, avatars, join stickers
+// realism-history-loader-v10.js — Full realism engine loader with proper avatars, join stickers, reactions, reply previews, and live + historical sync
 (function(){
 "use strict";
 
@@ -6,7 +6,7 @@
 CONFIG
 ===================================================== */
 const START_DATE = new Date(2025,7,14); // August 14, 2025
-const END_DATE = new Date();
+const END_DATE = new Date();             // Today
 const TARGET_MESSAGES = 5000;
 
 /* =====================================================
@@ -23,7 +23,11 @@ let unseenCount = 0, jumpIndicator, jumpText, container;
 function updateJump(){ if(jumpText) jumpText.textContent = unseenCount>1?`New messages · ${unseenCount}`:'New messages'; }
 function showJump(){ jumpIndicator?.classList.remove('hidden'); }
 function hideJump(){ unseenCount=0; updateJump(); jumpIndicator?.classList.add('hidden'); }
-function handleScroll(){ if(!container) return; const distance=container.scrollHeight-container.scrollTop-container.clientHeight; if(distance<80) hideJump(); }
+function handleScroll(){ 
+    if(!container) return; 
+    const distance=container.scrollHeight-container.scrollTop-container.clientHeight; 
+    if(distance<80) hideJump(); 
+}
 
 /* =====================================================
 TIMESTAMP ENGINE
@@ -57,9 +61,8 @@ function generateTimeline(){
         const count=activity();
         for(let i=0;i<count;i++){
             const time=timestamp(day);
-            if(maybe(0.12) && window.identity?.getRandomPersona){
-                if(maybe(0.7)) // only 70% chance to actually show join sticker
-                    items.push({type:"join", persona:window.identity.getRandomPersona(), timestamp:time});
+            if(maybe(0.08) && window.identity?.getRandomPersona){
+                items.push({type:"join", persona:window.identity.getRandomPersona(), timestamp:time});
             } else {
                 items.push({type:"chat", timestamp:time});
             }
@@ -91,7 +94,7 @@ async function preloadHistory(){
                     type:"system",
                     event:"join",
                     sticker:true,
-                    reactionPill:maybe(0.3) // 30% chance someone reacted
+                    reactionPill:maybe(0.4) // some join stickers get reaction pill
                 }
             );
             reactionQueue.push(msgId);
@@ -102,6 +105,8 @@ async function preloadHistory(){
             const convo=window.realism.generateConversation();
             const persona=convo.persona || window.identity.getRandomPersona();
             const id="m_"+Math.random().toString(36).slice(2);
+
+            // Fully hooked historical message
             window.TGRenderer?.prependMessage?.(
                 persona,
                 convo.text,
@@ -110,29 +115,30 @@ async function preloadHistory(){
                     timestamp:item.timestamp,
                     type:"historic",
                     bubblePreview:true,
-                    replyPreview:maybe(0.35), // some messages show reply preview
-                    reactionPill:maybe(0.4) // some messages have reaction pill
+                    replyPreview:maybe(0.35),
+                    reactionPill:maybe(0.25),
+                    avatar:persona.avatar,
+                    name:persona.name
                 }
             );
             reactionQueue.push(id);
         }
     }
 
-    // Reactions from random personas
+    // Simulate inline reactions for some messages
     for(const id of reactionQueue){
-        if(window.realism?.simulateInlineReactions && maybe(0.5)) 
+        if(window.realism?.simulateInlineReactions && maybe(0.5)){
             await window.realism.simulateInlineReactions(id, rand(1,4));
+        }
     }
 
     // Threaded replies for joiners
     await Promise.all(joinerThreads.map(j=>window.realism.generateThreadedJoinerReplies(j)));
 
-    // Auto-scroll to bottom after preload
-    if(container){
-        container.scrollTop = container.scrollHeight;
-    }
+    // Auto-scroll after preload
+    if(container) container.scrollTop = container.scrollHeight;
 
-    console.log("✅ Realism historical chat fully preloaded with system join stickers, persona messages, selective reply preview, reaction pills, and auto-scroll to bottom");
+    console.log("✅ Realism v10 historical chat fully synced: avatars, system joins, reactions, reply previews, timestamps");
 }
 
 /* =====================================================
@@ -146,6 +152,7 @@ async function liveMessage(){
 
     const scrollAtBottom=container.scrollTop+container.clientHeight>=container.scrollHeight-80;
     const msgId=`live_${Date.now()}_${rand(9999)}`;
+
     window.TGRenderer?.appendMessage?.(
         persona,
         convo.text,
@@ -154,12 +161,14 @@ async function liveMessage(){
             timestamp:new Date(),
             type:"incoming",
             bubblePreview:true,
-            replyPreview:maybe(0.4),
-            reactionPill:maybe(0.3)
+            replyPreview:maybe(0.35),
+            reactionPill:maybe(0.25),
+            avatar:persona.avatar,
+            name:persona.name
         }
     );
 
-    if(scrollAtBottom) container.scrollTop=container.scrollHeight;
+    if(scrollAtBottom) container.scrollTop = container.scrollHeight;
     else { unseenCount++; updateJump(); showJump(); }
 }
 
@@ -180,8 +189,10 @@ async function postMessage(item){
         type:item.type==="joiner"?"system":item.type||"incoming",
         id:msgId,
         bubblePreview:item.type!=="joiner",
-        replyPreview:maybe(0.35),
-        reactionPill:maybe(0.3)
+        replyPreview:item.type!=="joiner"?maybe(0.35):false,
+        reactionPill:item.type==="joiner"?maybe(0.5):maybe(0.25),
+        avatar:item.type!=="joiner"?persona.avatar:null,
+        name:item.type!=="joiner"?persona.name:null
     };
 
     window.TGRenderer?.appendMessage(
@@ -191,8 +202,7 @@ async function postMessage(item){
     );
     item.id=msgId;
 
-    // Random reactions from other members
-    if(maybe(0.25)) await simulateReactions({id:msgId}, rand(1,3));
+    if(maybe(0.3)) await simulateReactions({id:msgId}, rand(1,3));
 }
 
 /* =====================================================
@@ -245,8 +255,10 @@ async function generateThreadedJoinerReplies(joinItem){
             type:"incoming",
             id:msgId,
             parentId:joinItem.id,
-            replyPreview:maybe(0.6),
-            reactionPill:maybe(0.5)
+            replyPreview:maybe(0.5),
+            reactionPill:maybe(0.5),
+            avatar:persona.avatar,
+            name:persona.name
         });
         if(maybe(0.5)) await simulateInlineReactions(msgId, rand(1,3));
         await new Promise(r=>setTimeout(r,rand(400,1200)));
@@ -258,6 +270,7 @@ async function simulateJoiner(minInterval=30000,maxInterval=120000){
         const welcomeText=random(JOINER_WELCOMES).replace("{user}",persona.name);
         const joinItem={persona,text:welcomeText,timestamp:new Date(),type:"joiner"};
         await postMessage(joinItem);
+        await simulateReactions(joinItem, rand(1,3));
         await generateThreadedJoinerReplies(joinItem);
         await new Promise(r=>setTimeout(r,rand(minInterval,maxInterval)));
     }
@@ -300,7 +313,7 @@ async function init(){
     simulateJoiner();
     simulateCrowdBurst(120);
 
-    console.log("✅ Realism v8 loader fully fixed: realistic join stickers, reactions, reply previews, avatars, timeline, and auto-scroll");
+    console.log("✅ Realism v10 loader fully fixed: historical + live messages fully hooked, avatars, join stickers, reactions, reply previews, correct timestamps");
 }
 
 /* =====================================================
