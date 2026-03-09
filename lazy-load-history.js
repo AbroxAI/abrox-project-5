@@ -1,20 +1,25 @@
-// realism-history-live-recent-first-v8.js — FULL FIXED realism engine
+// realism-history-live-recent-first-v9.js — FULL FIXED realism engine
+
 (function(){
 "use strict";
 
 /* =====================================================
 CONFIG
 ===================================================== */
+
 const START_DATE = new Date(2025,7,14);
 const END_DATE   = new Date();
 const TARGET_MESSAGES = 5000;
 
+
 /* =====================================================
 UTILS
 ===================================================== */
+
 function rand(a,b){ return Math.floor(Math.random()*(b-a)+a); }
 function maybe(p){ return Math.random()<p; }
 function random(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
 
 /* =====================================================
 TIMESTAMP ENGINE
@@ -38,10 +43,10 @@ t = new Date(lastTime + rand(20000,90000));
 }
 
 lastTime = t.getTime();
-
 return t;
 
 }
+
 
 /* =====================================================
 DAY ACTIVITY
@@ -58,6 +63,7 @@ if(r<0.95) return rand(60,120);
 return rand(150,220);
 
 }
+
 
 /* =====================================================
 TIMELINE GENERATOR
@@ -101,6 +107,7 @@ return items.sort((a,b)=>a.timestamp-b.timestamp);
 
 }
 
+
 /* =====================================================
 REACTION ENGINE
 ===================================================== */
@@ -121,6 +128,33 @@ count:1
 }
 
 }
+
+
+/* =====================================================
+COMMENT GENERATOR
+===================================================== */
+
+function generateComment(){
+
+const templates=[
+
+()=>`Anyone trading ${random(ASSETS)} today?`,
+()=>`Just closed ${random(ASSETS)} nice profit`,
+()=>`Signal for ${random(ASSETS)} ${random(TIMEFRAMES)} looks good`,
+()=>`Entered ${random(ASSETS)} small position`,
+()=>`Market moving fast today`,
+()=>`Watching ${random(ASSETS)} closely`
+
+];
+
+let text=random(templates)();
+
+if(maybe(.6)) text+=" "+random(EMOJIS);
+
+return {text,timestamp:new Date()};
+
+}
+
 
 /* =====================================================
 HISTORY PRELOAD
@@ -157,15 +191,27 @@ continue;
 
 }
 
+
 /* CHAT MESSAGE */
 
-if(!window.realism?.generateConversation) continue;
+let convo=null;
 
-const convo = window.realism.generateConversation();
+if(window.realism?.generateConversation){
+convo = window.realism.generateConversation();
+}
 
-if(!convo || !convo.text) continue;
+let text = convo?.text;
 
-let persona = convo.persona;
+/* fallback if realism engine returned empty */
+
+if(!text){
+
+const fallback = generateComment();
+text = fallback.text;
+
+}
+
+let persona = convo?.persona;
 
 if(!persona || !persona.avatar){
 persona = window.identity.getRandomPersona();
@@ -182,7 +228,7 @@ parentId=random(messageIds);
 window.TGRenderer.prependMessage(
 
 persona,
-convo.text,
+text,
 {
 id,
 timestamp:item.timestamp,
@@ -202,9 +248,11 @@ await simulateInlineReactions(id,rand(1,3));
 
 }
 
+
 /* scroll to bottom */
 
 const container=document.getElementById("tg-comments-container");
+
 if(container){
 container.scrollTop=container.scrollHeight;
 }
@@ -212,6 +260,7 @@ container.scrollTop=container.scrollHeight;
 console.log("✓ Historical chat loaded");
 
 }
+
 
 /* =====================================================
 POST MESSAGE
@@ -249,30 +298,6 @@ await simulateInlineReactions(msgId,rand(1,3));
 
 }
 
-/* =====================================================
-COMMENT GENERATOR
-===================================================== */
-
-function generateComment(){
-
-const templates=[
-
-()=>`Anyone trading ${random(ASSETS)} today?`,
-()=>`Just closed ${random(ASSETS)} nice profit`,
-()=>`Signal for ${random(ASSETS)} ${random(TIMEFRAMES)} looks good`,
-()=>`Entered ${random(ASSETS)} small position`,
-()=>`Market moving fast today`,
-()=>`Watching ${random(ASSETS)} closely`
-
-];
-
-let text=random(templates)();
-
-if(maybe(.6)) text+=" "+random(EMOJIS);
-
-return {text,timestamp:new Date()};
-
-}
 
 /* =====================================================
 POOL ENGINE
@@ -293,6 +318,7 @@ if(pool.length>50000) break;
 }
 
 }
+
 
 /* =====================================================
 CROWD BURST
@@ -318,6 +344,7 @@ await new Promise(r=>setTimeout(r,rand(200,700)));
 
 }
 
+
 /* =====================================================
 LIVE MESSAGE ENGINE
 ===================================================== */
@@ -328,20 +355,26 @@ if(!window.realism?.generateConversation) return;
 
 const convo=window.realism.generateConversation();
 
-let persona=convo.persona;
+let persona=convo?.persona;
 
 if(!persona || !persona.avatar){
 persona=window.identity.getRandomPersona();
 }
 
-await window.queuedTyping(persona,convo.text);
+let text=convo?.text;
+
+if(!text){
+text=generateComment().text;
+}
+
+await window.queuedTyping(persona,text);
 
 const id="live_"+Date.now()+"_"+rand(9999);
 
 window.TGRenderer.appendMessage(
 
 persona,
-convo.text,
+text,
 {
 id,
 timestamp:new Date(),
@@ -357,6 +390,7 @@ await simulateInlineReactions(id,rand(1,3));
 }
 
 }
+
 
 /* =====================================================
 INIT
@@ -381,6 +415,7 @@ simulateCrowdBurst(120);
 console.log("✓ Realism engine ready");
 
 }
+
 
 /* =====================================================
 EXPORTS
