@@ -1,4 +1,4 @@
-// realism-history-loader-v8-realistic.js — Full loader with system join stickers + random reactions + reply preview for realism
+// realism-history-loader-v8-realistic.js — Full loader with realistic reactions, avatars, join stickers
 (function(){
 "use strict";
 
@@ -58,7 +58,8 @@ function generateTimeline(){
         for(let i=0;i<count;i++){
             const time=timestamp(day);
             if(maybe(0.12) && window.identity?.getRandomPersona){
-                items.push({type:"join", persona:window.identity.getRandomPersona(), timestamp:time});
+                if(maybe(0.7)) // only 70% chance to actually show join sticker
+                    items.push({type:"join", persona:window.identity.getRandomPersona(), timestamp:time});
             } else {
                 items.push({type:"chat", timestamp:time});
             }
@@ -90,7 +91,7 @@ async function preloadHistory(){
                     type:"system",
                     event:"join",
                     sticker:true,
-                    reactionPill:true
+                    reactionPill:maybe(0.3) // 30% chance someone reacted
                 }
             );
             reactionQueue.push(msgId);
@@ -101,11 +102,6 @@ async function preloadHistory(){
             const convo=window.realism.generateConversation();
             const persona=convo.persona || window.identity.getRandomPersona();
             const id="m_"+Math.random().toString(36).slice(2);
-
-            // RANDOMIZE reply preview & reaction pill for realism
-            const useReplyPreview = maybe(0.35);
-            const useReactionPill = maybe(0.25);
-
             window.TGRenderer?.prependMessage?.(
                 persona,
                 convo.text,
@@ -114,17 +110,18 @@ async function preloadHistory(){
                     timestamp:item.timestamp,
                     type:"historic",
                     bubblePreview:true,
-                    replyPreview:useReplyPreview,
-                    reactionPill:useReactionPill
+                    replyPreview:maybe(0.35), // some messages show reply preview
+                    reactionPill:maybe(0.4) // some messages have reaction pill
                 }
             );
             reactionQueue.push(id);
         }
     }
 
-    // Reactions
+    // Reactions from random personas
     for(const id of reactionQueue){
-        if(window.realism?.simulateInlineReactions) await window.realism.simulateInlineReactions(id, rand(1,4));
+        if(window.realism?.simulateInlineReactions && maybe(0.5)) 
+            await window.realism.simulateInlineReactions(id, rand(1,4));
     }
 
     // Threaded replies for joiners
@@ -135,7 +132,7 @@ async function preloadHistory(){
         container.scrollTop = container.scrollHeight;
     }
 
-    console.log("✅ Realism historical chat fully preloaded with system join stickers, realistic persona messages, random reply preview and reaction pills, and auto-scroll to bottom");
+    console.log("✅ Realism historical chat fully preloaded with system join stickers, persona messages, selective reply preview, reaction pills, and auto-scroll to bottom");
 }
 
 /* =====================================================
@@ -149,10 +146,6 @@ async function liveMessage(){
 
     const scrollAtBottom=container.scrollTop+container.clientHeight>=container.scrollHeight-80;
     const msgId=`live_${Date.now()}_${rand(9999)}`;
-
-    const useReplyPreview = maybe(0.35);
-    const useReactionPill = maybe(0.25);
-
     window.TGRenderer?.appendMessage?.(
         persona,
         convo.text,
@@ -161,8 +154,8 @@ async function liveMessage(){
             timestamp:new Date(),
             type:"incoming",
             bubblePreview:true,
-            replyPreview:useReplyPreview,
-            reactionPill:useReactionPill
+            replyPreview:maybe(0.4),
+            reactionPill:maybe(0.3)
         }
     );
 
@@ -182,17 +175,13 @@ async function postMessage(item){
     if(item.type!=="joiner") await window.queuedTyping(persona,text);
 
     const msgId=`realism_${item.type||"msg"}_${Date.now()}_${rand(9999)}`;
-
-    const useReplyPreview = item.type==="joiner" ? true : maybe(0.35);
-    const useReactionPill = item.type==="joiner" ? true : maybe(0.25);
-
     const options={
         timestamp:item.timestamp||new Date(),
         type:item.type==="joiner"?"system":item.type||"incoming",
         id:msgId,
         bubblePreview:item.type!=="joiner",
-        replyPreview:useReplyPreview,
-        reactionPill:useReactionPill
+        replyPreview:maybe(0.35),
+        reactionPill:maybe(0.3)
     };
 
     window.TGRenderer?.appendMessage(
@@ -202,7 +191,8 @@ async function postMessage(item){
     );
     item.id=msgId;
 
-    if(maybe(0.3)) await simulateReactions({id:msgId}, rand(1,3));
+    // Random reactions from other members
+    if(maybe(0.25)) await simulateReactions({id:msgId}, rand(1,3));
 }
 
 /* =====================================================
@@ -250,17 +240,13 @@ async function generateThreadedJoinerReplies(joinItem){
         const replyText=random(JOINER_REPLIES).replace("{user}",joinItem.persona.name);
         await window.queuedTyping(persona,replyText);
         const msgId=`realism_reply_${Date.now()}_${rand(9999)}`;
-
-        const useReplyPreview = maybe(0.35);
-        const useReactionPill = maybe(0.25);
-
         window.TGRenderer.appendMessage(persona,replyText,{
             timestamp:new Date(),
             type:"incoming",
             id:msgId,
             parentId:joinItem.id,
-            replyPreview:useReplyPreview,
-            reactionPill:useReactionPill
+            replyPreview:maybe(0.6),
+            reactionPill:maybe(0.5)
         });
         if(maybe(0.5)) await simulateInlineReactions(msgId, rand(1,3));
         await new Promise(r=>setTimeout(r,rand(400,1200)));
@@ -272,7 +258,6 @@ async function simulateJoiner(minInterval=30000,maxInterval=120000){
         const welcomeText=random(JOINER_WELCOMES).replace("{user}",persona.name);
         const joinItem={persona,text:welcomeText,timestamp:new Date(),type:"joiner"};
         await postMessage(joinItem);
-        await simulateReactions(joinItem, rand(1,3));
         await generateThreadedJoinerReplies(joinItem);
         await new Promise(r=>setTimeout(r,rand(minInterval,maxInterval)));
     }
@@ -315,7 +300,7 @@ async function init(){
     simulateJoiner();
     simulateCrowdBurst(120);
 
-    console.log("✅ Realism v8 realistic loader fully fixed + system join stickers + randomized reply preview/reaction pills + auto-scroll");
+    console.log("✅ Realism v8 loader fully fixed: realistic join stickers, reactions, reply previews, avatars, timeline, and auto-scroll");
 }
 
 /* =====================================================
