@@ -1,67 +1,54 @@
-// history-loader-v16-full-synced.js — Fully synced hybrid loader + live + joiners + multi-typing
+// full-hybrid-loader-v22-fast.js — Instant full history + correct dates + live + joiners
 (function(){
 "use strict";
 
-const SCROLL_BATCH_SIZE = 100;
-let loading = false;
 let liveInterval = null;
 let joinerInterval = null;
+const SCROLL_BATCH_SIZE = 100;
 
-// Wait until all engines + container ready
-async function waitForReady(timeout = 40000){
-    let waited = 0;
+// Base start date for historical messages
+const BASE_DATE = new Date(2025,7,14,10,0,0); // Aug 14, 2025
+
+// Wait for engines + container
+async function waitForReady(timeout=40000){
+    let waited=0;
     while((!window.realism?.postMessage ||
+           !window.realism?.generateComment ||
+           !window.realism?.generateThreadedJoinerReplies ||
            !window.identity?.getRandomPersona ||
+           !window.identity?.SyntheticPool ||
            !window.TGRenderer?.appendMessage ||
-           !document.getElementById("tg-comments-container")) &&
-           waited < timeout){
+           !window.TGRenderer?.showTyping ||
+           !window.TGRenderer?.appendJoinSticker ||
+           !window.queuedTyping ||
+           !document.getElementById("tg-comments-container")) && waited<timeout){
         await new Promise(r=>setTimeout(r,50));
-        waited += 50;
+        waited+=50;
     }
     return !!document.getElementById("tg-comments-container");
 }
 
-// Show multiple personas typing simultaneously
+// Multi-persona typing header
 async function showTypingHeader(personas){
     if(!personas.length) return;
-    for(const p of personas) if(window.TGRenderer?.showTyping) window.TGRenderer.showTyping(p);
-    const duration = 500 + Math.min(Math.max(...personas.map(p=>p.name.length*50)), 2000);
+    for(const p of personas) window.TGRenderer?.showTyping?.(p);
+    const duration = 500 + Math.min(Math.max(...personas.map(p=>p.name.length*50)),2000);
     await new Promise(r=>setTimeout(r,duration));
-    for(const p of personas) if(window.TGRenderer?.hideTyping) window.TGRenderer.hideTyping(p);
+    for(const p of personas) window.TGRenderer?.hideTyping?.(p);
 }
 
-// Pick a random historical message to reply to
+// Pick random reply target
 function pickRandomReplyTarget(pool){
     if(!pool.length) return null;
     const recent = pool.slice(-50);
     return recent[Math.floor(Math.random()*recent.length)];
 }
 
-// Ensure pool has enough messages
-function ensurePool(min=15000){
-    if(!window.realism?.POOL) window.realism.POOL = [];
-    while(window.realism.POOL.length < min){
-        let item;
-        if(Math.random() < 0.05){
-            // Joiner
-            const persona = window.identity.getRandomPersona();
-            item = {text:`${persona.name} joined the chat!`, type:"joiner", timestamp:new Date(), persona};
-        } else {
-            // Historical comment
-            item = window.realism.generateComment?.() || 
-                   {text:"Hello!", type:"historical", timestamp:new Date(), persona:window.identity.getRandomPersona()};
-        }
-        item.id = `msg_${Date.now()}_${Math.floor(Math.random()*100000)}`;
-        window.realism.POOL.push(item);
-    }
-}
-
-// Post a single message via realism engine
-async function postRealismMessage(item, pool){
+// Post a single message
+async function postRealismMessage(item,pool){
     const persona = item.persona || window.identity.getRandomPersona();
 
-    // Random reply preview
-    if(!item.parentId && pool && pool.length && Math.random() < 0.5){
+    if(!item.parentId && pool && pool.length && Math.random()<0.5){
         const target = pickRandomReplyTarget(pool);
         if(target){
             item.parentId = target.id;
@@ -69,123 +56,84 @@ async function postRealismMessage(item, pool){
         }
     }
 
-    // Join sticker for joiners
-    if(item.type==="joiner"){
-        await window.TGRenderer.appendJoinSticker([persona]);
-    }
-
-    // Show typing header
+    if(item.type==="joiner") await window.TGRenderer.appendJoinSticker([persona]);
     await showTypingHeader([persona]);
 
-    // Post via realism engine
     await window.realism.postMessage({
         ...item,
         persona,
-        timestamp:item.timestamp||new Date(),
-        type:item.type||"incoming",
-        parentId:item.parentId||null,
-        replyToText:item.replyToText||null,
+        timestamp: item.timestamp || new Date(),
+        type: item.type || "incoming",
+        parentId: item.parentId || null,
+        replyToText: item.replyToText || null,
         disableImages:true
     });
 
-    // Threaded replies for joiners
-    if(item.type==="joiner"){
-        await window.realism.generateThreadedJoinerReplies({...item, persona});
-    }
-
-    // Highlight joiner messages
-    if(item.type==="joiner" && window.TGRenderer?.highlightMessage){
-        window.TGRenderer.highlightMessage(item.id);
-    }
+    if(item.type==="joiner") await window.realism.generateThreadedJoinerReplies({...item, persona});
+    if(item.type==="joiner" && window.TGRenderer?.highlightMessage) window.TGRenderer.highlightMessage(item.id);
 }
 
-// Load batch progressively
-async function loadBatch(batch, pool){
-    // Show 2–3 simultaneous typers
-    const simultaneousTypers = [];
-    for(let i=0;i<Math.min(3,batch.length);i++){
-        simultaneousTypers.push(batch[i].persona || window.identity.getRandomPersona());
-    }
-    if(simultaneousTypers.length) await showTypingHeader(simultaneousTypers);
+// Generate full historical pool with correct dates
+async function renderFullHistory(totalCount=20000){
+    if(!window.realism?.POOL) window.realism.POOL = [];
 
-    for(const item of batch){
-        await postRealismMessage(item, pool);
-        await new Promise(r=>setTimeout(r,50+Math.random()*150));
+    while(window.realism.POOL.length<totalCount){
+        const comment = window.realism.generateComment();
+        const now = Date.now();
+        const offset = (window.realism.POOL.length/totalCount)*(now - BASE_DATE.getTime());
+        comment.timestamp = new Date(BASE_DATE.getTime() + offset);
+        window.realism.POOL.push(comment);
     }
+
+    const poolClone = window.realism.POOL.slice().sort((a,b)=>a.timestamp-b.timestamp);
+
+    // Post all instantly
+    await Promise.all(poolClone.map(item => postRealismMessage(item,poolClone)));
+
+    return poolClone;
 }
 
-// Prepare historical pool without removing items
-async function prepareHistory(totalCount=15000){
-    ensurePool(totalCount);
-    const POOL = window.realism.POOL.slice();
-    POOL.sort((a,b)=>b.timestamp - a.timestamp);
-    return POOL.slice(0,totalCount);
-}
-
-// Inject live messages dynamically
+// Live injection
 function startLiveInjection(pool){
     if(liveInterval) clearInterval(liveInterval);
     liveInterval = setInterval(async()=>{
-        if(!window.realism?.POOL || !window.realism.POOL.length) return;
-        const item = window.realism.POOL[Math.floor(Math.random()*window.realism.POOL.length)];
+        if(!pool.length) return;
+        const item = pool[Math.floor(Math.random()*pool.length)];
         await postRealismMessage({...item, timestamp:new Date()}, pool);
     }, 3000 + Math.random()*4000);
 }
 
-// Inject new joiners periodically
-function startJoinerInjection(pool){
+// Joiners
+function startJoinerInjection(){
     if(joinerInterval) clearInterval(joinerInterval);
     joinerInterval = setInterval(async()=>{
         const persona = window.identity.getRandomPersona();
         const joinerItem = {text:`${persona.name} joined the chat!`, type:"joiner", timestamp:new Date(), persona};
         window.realism.POOL.push(joinerItem);
-        await postRealismMessage(joinerItem, pool);
+        await postRealismMessage(joinerItem, window.realism.POOL);
     }, 20000 + Math.random()*10000);
 }
 
-// Full hybrid loader
-async function setupHybridLoader(totalCount=15000){
+// Full fast loader
+async function setupFastHybridLoader(){
     const ready = await waitForReady();
-    if(!ready) return console.error("TGRenderer or container not ready");
-
-    const history = await prepareHistory(totalCount);
-    if(!history.length) return;
+    if(!ready) return console.error("Engines or container not ready");
 
     const container = document.getElementById("tg-comments-container");
+    const history = await renderFullHistory();
 
-    // Load initial batch
-    await loadBatch(history.splice(0, SCROLL_BATCH_SIZE), history);
-
-    // Progressive scroll loading
-    container.addEventListener("scroll", async()=>{
-        if(loading) return;
-        const distance = container.scrollHeight - container.scrollTop - container.clientHeight;
-        if(distance < 300 && history.length){
-            loading = true;
-            const batch = history.splice(0, SCROLL_BATCH_SIZE);
-            await loadBatch(batch, history);
-            loading = false;
-        }
-    });
-
-    // Start live + joiners
+    // Start live messages & joiners
     startLiveInjection(history);
-    startJoinerInjection(history);
-}
-
-// Auto-init loader
-async function initFullHistoryLoader(){
-    await waitForReady();
-    setupHybridLoader(15000);
+    startJoinerInjection();
 }
 
 // PUBLIC API
 window.historyLoader={
-    loadFullSyncedHistory: setupHybridLoader,
-    initHybridLoader: initFullHistoryLoader
+    loadFullSyncedHistory: setupFastHybridLoader,
+    initHybridLoader: setupFastHybridLoader
 };
 
-// Auto-init optional
-// initFullHistoryLoader();
+// Optional auto-init
+// setupFastHybridLoader();
 
 })();
