@@ -1,4 +1,4 @@
-// realism-history-loader-v8.js — Full historical loader + burst crowd + persona-driven + reactions + threaded replies
+// realism-history-loader-v8-realistic.js — Full loader with system join stickers + random reactions + reply preview for realism
 (function(){
 "use strict";
 
@@ -76,16 +76,22 @@ async function preloadHistory(){
     const timeline = generateTimeline();
     const reactionQueue = [];
     const joinerThreads = [];
-    const scrollAtBottom = container.scrollTop+container.clientHeight>=container.scrollHeight-80;
 
     for(const item of timeline){
         if(item.type==="join"){
-            // Joiner sticker with reaction pill
+            // SYSTEM join sticker
             const msgId=`joiner_${Date.now()}_${rand(9999)}`;
             window.TGRenderer?.prependMessage?.(
-                item.persona,
+                null,
                 `${item.persona.name} joined the group`,
-                {timestamp:item.timestamp,type:"system",event:"join",id:msgId,sticker:true,reactionPill:true}
+                {
+                    id: msgId,
+                    timestamp: item.timestamp,
+                    type:"system",
+                    event:"join",
+                    sticker:true,
+                    reactionPill:true
+                }
             );
             reactionQueue.push(msgId);
             if(window.realism?.generateThreadedJoinerReplies){
@@ -95,29 +101,41 @@ async function preloadHistory(){
             const convo=window.realism.generateConversation();
             const persona=convo.persona || window.identity.getRandomPersona();
             const id="m_"+Math.random().toString(36).slice(2);
-            window.TGRenderer?.prependMessage?.(persona, convo.text,{
-                id,
-                timestamp:item.timestamp,
-                type:"historic",
-                bubblePreview:true
-            });
+
+            // RANDOMIZE reply preview & reaction pill for realism
+            const useReplyPreview = maybe(0.35);
+            const useReactionPill = maybe(0.25);
+
+            window.TGRenderer?.prependMessage?.(
+                persona,
+                convo.text,
+                {
+                    id,
+                    timestamp:item.timestamp,
+                    type:"historic",
+                    bubblePreview:true,
+                    replyPreview:useReplyPreview,
+                    reactionPill:useReactionPill
+                }
+            );
             reactionQueue.push(id);
         }
     }
 
     // Reactions
-    reactionQueue.forEach(id=>{ if(window.realism?.simulateInlineReactions) window.realism.simulateInlineReactions(id, rand(1,4)); });
-
-    // Run all joiner threads simultaneously
-    await Promise.all(joinerThreads.map(j=>window.realism.generateThreadedJoinerReplies(j)));
-
-    if(!scrollAtBottom){
-        unseenCount=reactionQueue.length;
-        updateJump();
-        showJump();
+    for(const id of reactionQueue){
+        if(window.realism?.simulateInlineReactions) await window.realism.simulateInlineReactions(id, rand(1,4));
     }
 
-    console.log("✅ Realism historical chat fully preloaded with persona-driven threads and reactions");
+    // Threaded replies for joiners
+    await Promise.all(joinerThreads.map(j=>window.realism.generateThreadedJoinerReplies(j)));
+
+    // Auto-scroll to bottom after preload
+    if(container){
+        container.scrollTop = container.scrollHeight;
+    }
+
+    console.log("✅ Realism historical chat fully preloaded with system join stickers, realistic persona messages, random reply preview and reaction pills, and auto-scroll to bottom");
 }
 
 /* =====================================================
@@ -126,17 +144,27 @@ LIVE MESSAGES
 async function liveMessage(){
     if(!window.realism?.generateConversation) return;
     const convo=window.realism.generateConversation();
-    const persona=convo.persona || window.identity?.getRandomPersona();
+    const persona=convo.persona || window.identity.getRandomPersona();
     await window.queuedTyping(persona,convo.text);
 
     const scrollAtBottom=container.scrollTop+container.clientHeight>=container.scrollHeight-80;
     const msgId=`live_${Date.now()}_${rand(9999)}`;
-    window.TGRenderer?.appendMessage?.(persona,convo.text,{
-        id:msgId,
-        timestamp:new Date(),
-        type:"incoming",
-        bubblePreview:true
-    });
+
+    const useReplyPreview = maybe(0.35);
+    const useReactionPill = maybe(0.25);
+
+    window.TGRenderer?.appendMessage?.(
+        persona,
+        convo.text,
+        {
+            id:msgId,
+            timestamp:new Date(),
+            type:"incoming",
+            bubblePreview:true,
+            replyPreview:useReplyPreview,
+            reactionPill:useReactionPill
+        }
+    );
 
     if(scrollAtBottom) container.scrollTop=container.scrollHeight;
     else { unseenCount++; updateJump(); showJump(); }
@@ -148,22 +176,30 @@ POST MESSAGE
 async function postMessage(item){
     if(!window.identity?.getRandomPersona || !window.TGRenderer?.appendMessage) return;
     const persona=item.persona||window.identity.getRandomPersona();
-    if(!persona) return;
+    if(!persona && item.type!=="join") return;
 
     let text=item.type==="joiner"?item.text:(Math.random()<0.45 ? generateRoleMessage?.(persona)||item.text:item.text);
-    await window.queuedTyping(persona,text);
+    if(item.type!=="joiner") await window.queuedTyping(persona,text);
 
     const msgId=`realism_${item.type||"msg"}_${Date.now()}_${rand(9999)}`;
+
+    const useReplyPreview = item.type==="joiner" ? true : maybe(0.35);
+    const useReactionPill = item.type==="joiner" ? true : maybe(0.25);
+
     const options={
         timestamp:item.timestamp||new Date(),
-        type:item.type||"incoming",
+        type:item.type==="joiner"?"system":item.type||"incoming",
         id:msgId,
         bubblePreview:item.type!=="joiner",
-        replyPreview:true,
-        reactionPill:item.type==="joiner"
+        replyPreview:useReplyPreview,
+        reactionPill:useReactionPill
     };
 
-    window.TGRenderer?.appendMessage(persona,text,options);
+    window.TGRenderer?.appendMessage(
+        item.type==="joiner"?null:persona,
+        text,
+        options
+    );
     item.id=msgId;
 
     if(maybe(0.3)) await simulateReactions({id:msgId}, rand(1,3));
@@ -194,7 +230,6 @@ function ensurePool(min=10000){
     window.realism.POOL=window.realism.POOL||[];
     while(window.realism.POOL.length<min) window.realism.POOL.push(generateComment());
 }
-
 async function simulateCrowdBurst(total=120,minBurst=3,maxBurst=8,minDelay=200,maxDelay=800){
     ensurePool(total);
     while(total>0 && window.realism.POOL.length>0){
@@ -215,12 +250,17 @@ async function generateThreadedJoinerReplies(joinItem){
         const replyText=random(JOINER_REPLIES).replace("{user}",joinItem.persona.name);
         await window.queuedTyping(persona,replyText);
         const msgId=`realism_reply_${Date.now()}_${rand(9999)}`;
+
+        const useReplyPreview = maybe(0.35);
+        const useReactionPill = maybe(0.25);
+
         window.TGRenderer.appendMessage(persona,replyText,{
             timestamp:new Date(),
             type:"incoming",
             id:msgId,
             parentId:joinItem.id,
-            replyPreview:true
+            replyPreview:useReplyPreview,
+            reactionPill:useReactionPill
         });
         if(maybe(0.5)) await simulateInlineReactions(msgId, rand(1,3));
         await new Promise(r=>setTimeout(r,rand(400,1200)));
@@ -275,7 +315,7 @@ async function init(){
     simulateJoiner();
     simulateCrowdBurst(120);
 
-    console.log("✅ Realism v8 historical loader fully persona-hooked + burst + reactions + threads + joiner sticker reaction pill + reply preview");
+    console.log("✅ Realism v8 realistic loader fully fixed + system join stickers + randomized reply preview/reaction pills + auto-scroll");
 }
 
 /* =====================================================
