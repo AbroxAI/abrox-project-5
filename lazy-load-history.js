@@ -1,4 +1,4 @@
-// realism-history-live-v10.js
+// realism-history-loader-v2-advanced.js
 (function(){
 "use strict";
 
@@ -7,13 +7,14 @@ CONFIG
 ===================================================== */
 const START_DATE = new Date(2025,7,14);
 const END_DATE = new Date();
-const TARGET_MESSAGES = 5000;
-const CHUNK_SIZE = 80; // messages loaded per scroll batch
+
+const TARGET_MESSAGES = 8000;
+const CHUNK_SIZE = 90;
 
 /* =====================================================
 UTILS
 ===================================================== */
-function rand(a,b){ return Math.floor(Math.random()*(b-a)+a); }
+function rand(min,max){ return Math.floor(Math.random()*(max-min)+min); }
 function maybe(p){ return Math.random()<p; }
 function random(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 
@@ -21,33 +22,6 @@ function random(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 DOM
 ===================================================== */
 let container;
-let jumpIndicator;
-let jumpText;
-let unseenCount = 0;
-
-/* =====================================================
-SCROLL
-===================================================== */
-function updateJump(){
- if(!jumpText) return;
- jumpText.textContent = unseenCount>1 ? `New messages · ${unseenCount}` : "New messages";
-}
-
-function showJump(){ jumpIndicator?.classList.remove("hidden"); }
-function hideJump(){ unseenCount=0; updateJump(); jumpIndicator?.classList.add("hidden"); }
-
-function handleScroll(){
- if(!container) return;
-
- const distance = container.scrollHeight - container.scrollTop - container.clientHeight;
-
- if(distance < 80) hideJump();
-
- // LOAD OLDER MESSAGES WHEN SCROLL NEAR TOP
- if(container.scrollTop < 120){
-  loadOlderMessages();
- }
-}
 
 /* =====================================================
 TIMESTAMP ENGINE
@@ -55,11 +29,18 @@ TIMESTAMP ENGINE
 let lastTime = 0;
 
 function timestamp(day){
- let t = new Date(day.getFullYear(), day.getMonth(), day.getDate(),
- rand(7,22), rand(0,60), rand(0,60));
+
+ let t = new Date(
+  day.getFullYear(),
+  day.getMonth(),
+  day.getDate(),
+  rand(6,23),
+  rand(0,60),
+  rand(0,60)
+ );
 
  if(t.getTime() <= lastTime){
-  t = new Date(lastTime + rand(15000,90000));
+  t = new Date(lastTime + rand(12000,90000));
  }
 
  lastTime = t.getTime();
@@ -67,21 +48,33 @@ function timestamp(day){
 }
 
 /* =====================================================
-ACTIVITY DISTRIBUTION
+ACTIVITY MODEL
 ===================================================== */
-function activity(){
- const r=Math.random();
- if(r<0.45) return rand(3,8);
- if(r<0.75) return rand(10,25);
- if(r<0.95) return rand(60,120);
- return rand(150,220);
+function activity(hour){
+
+ if(hour < 7) return rand(0,3);
+ if(hour < 12) return rand(10,25);
+ if(hour < 18) return rand(30,80);
+ if(hour < 22) return rand(40,120);
+
+ return rand(5,20);
+}
+
+/* =====================================================
+VIRAL BURST
+===================================================== */
+function maybeBurst(){
+
+ if(!maybe(0.06)) return 0;
+
+ return rand(8,20);
 }
 
 /* =====================================================
 TIMELINE
 ===================================================== */
-let timeline = [];
-let currentIndex = 0;
+let timeline=[];
+let currentIndex=0;
 
 function generateTimeline(){
 
@@ -90,23 +83,43 @@ function generateTimeline(){
 
  while(day<=END_DATE && items.length<TARGET_MESSAGES){
 
-  const count = activity();
+  const hour = rand(6,22);
+  const baseActivity = activity(hour);
+  const burst = maybeBurst();
+
+  const count = baseActivity + burst;
 
   for(let i=0;i<count;i++){
 
    const time = timestamp(day);
 
-   if(maybe(0.12) && window.identity?.getRandomPersona){
+   if(maybe(0.08)){
+
+    const persona = window.identity.getRandomPersona();
+
     items.push({
      type:"join",
-     persona:window.identity.getRandomPersona(),
-     timestamp:time
+     persona,
+     timestamp:time,
+     id:"join_"+time.getTime()+"_"+i
     });
-   } else {
+
+   }else{
+
+    const convo = window.realism.generateConversation
+      ? window.realism.generateConversation()
+      : {text:"Historic message"};
+
+    const persona = convo.persona || window.identity.getRandomPersona();
+
     items.push({
      type:"chat",
-     timestamp:time
+     persona,
+     text:convo.text,
+     timestamp:time,
+     id:"msg_"+time.getTime()+"_"+i
     });
+
    }
 
    if(items.length>=TARGET_MESSAGES) break;
@@ -119,164 +132,170 @@ function generateTimeline(){
  timeline = items.sort((a,b)=>a.timestamp-b.timestamp);
 
  currentIndex = timeline.length;
-
 }
 
 /* =====================================================
-LOAD OLDER MESSAGES
+MESSAGE MEMORY
 ===================================================== */
-async function loadOlderMessages(){
+let lastMessages=[];
+
+function rememberMessage(msg){
+ lastMessages.push(msg);
+ if(lastMessages.length>40) lastMessages.shift();
+}
+
+function randomPrevious(){
+ if(!lastMessages.length) return null;
+ return random(lastMessages);
+}
+
+/* =====================================================
+IMAGE GENERATOR
+===================================================== */
+function maybeImage(){
+
+ if(!maybe(0.05)) return null;
+
+ return "https://picsum.photos/seed/"+rand(1,9999)+"/300/200";
+}
+
+/* =====================================================
+REACTIONS
+===================================================== */
+const REACTIONS=["👍","🔥","💯","👏","❤️","😂","🚀"];
+
+function applyReactions(id){
+
+ if(!maybe(0.28)) return;
+
+ const count = rand(1,4);
+
+ for(let i=0;i<count;i++){
+  window.TGRenderer.appendReaction(id,random(REACTIONS));
+ }
+}
+
+/* =====================================================
+LOAD OLDER
+===================================================== */
+async function loadOlder(){
 
  if(currentIndex<=0) return;
 
  const previousHeight = container.scrollHeight;
 
- const start = Math.max(0,currentIndex-CHUNK_SIZE);
- const chunk = timeline.slice(start,currentIndex);
+ const start=Math.max(0,currentIndex-CHUNK_SIZE);
+ const chunk=timeline.slice(start,currentIndex);
 
  for(const item of chunk){
 
   if(item.type==="join"){
 
-   window.TGRenderer?.prependMessage?.(
-    item.persona,
-    `${item.persona.name} joined the group`,
-    {
-     timestamp:item.timestamp,
-     type:"system",
-     event:"join"
-    }
-   );
+   window.TGRenderer.appendJoinSticker([item.persona]);
 
-  } else {
-
-   const convo = window.realism.generateConversation?.() || {};
-   const persona = convo.persona || window.identity?.getRandomPersona();
-
-   window.TGRenderer?.prependMessage?.(
-    persona,
-    convo.text || "Historic message",
-    {
-     timestamp:item.timestamp,
-     type:"historic",
-     bubblePreview:true
-    }
-   );
+   continue;
 
   }
 
+  const opts={
+   id:item.id,
+   timestamp:item.timestamp,
+   type:"incoming"
+  };
+
+  const prev=randomPrevious();
+
+  if(prev && maybe(0.18)){
+   opts.replyToId = prev.id;
+   opts.replyToText = prev.text;
+  }
+
+  const image = maybeImage();
+
+  if(image){
+   opts.image=image;
+   opts.caption=item.text;
+  }
+
+  const id = window.TGRenderer.prependMessage(
+   item.persona,
+   item.text,
+   opts
+  );
+
+  applyReactions(id);
+
+  rememberMessage({id,text:item.text});
+
  }
 
- currentIndex = start;
+ currentIndex=start;
 
- // maintain scroll position
- const newHeight = container.scrollHeight;
+ const newHeight=container.scrollHeight;
  container.scrollTop += (newHeight-previousHeight);
-
 }
 
 /* =====================================================
-INITIAL HISTORY LOAD
+INITIAL HISTORY
 ===================================================== */
-async function preloadRecentHistory(){
+async function preload(){
 
- const start = Math.max(0,timeline.length-CHUNK_SIZE);
- const chunk = timeline.slice(start,timeline.length);
+ const start=Math.max(0,timeline.length-CHUNK_SIZE);
+ const chunk=timeline.slice(start);
 
  for(const item of chunk){
 
   if(item.type==="join"){
 
-   window.TGRenderer?.appendMessage?.(
-    item.persona,
-    `${item.persona.name} joined the group`,
-    {
-     timestamp:item.timestamp,
-     type:"system",
-     event:"join"
-    }
-   );
-
-  } else {
-
-   const convo = window.realism.generateConversation?.() || {};
-   const persona = convo.persona || window.identity?.getRandomPersona();
-
-   window.TGRenderer?.appendMessage?.(
-    persona,
-    convo.text || "Historic message",
-    {
-     timestamp:item.timestamp,
-     type:"historic",
-     bubblePreview:true
-    }
-   );
+   window.TGRenderer.appendJoinSticker([item.persona]);
+   continue;
 
   }
 
+  const opts={
+   id:item.id,
+   timestamp:item.timestamp,
+   type:"incoming"
+  };
+
+  const prev=randomPrevious();
+
+  if(prev && maybe(0.18)){
+   opts.replyToId=prev.id;
+   opts.replyToText=prev.text;
+  }
+
+  const image = maybeImage();
+
+  if(image){
+   opts.image=image;
+   opts.caption=item.text;
+  }
+
+  const id = window.TGRenderer.appendMessage(
+   item.persona,
+   item.text,
+   opts
+  );
+
+  applyReactions(id);
+
+  rememberMessage({id,text:item.text});
+
  }
 
- currentIndex = start;
+ currentIndex=start;
 
  container.scrollTop = container.scrollHeight;
-
 }
 
 /* =====================================================
-LIVE CHAT
+SCROLL
 ===================================================== */
-async function liveMessage(){
+function handleScroll(){
 
- const convo = window.realism.generateConversation?.();
- if(!convo) return;
-
- const persona = convo.persona || window.identity?.getRandomPersona();
-
- await window.queuedTyping(persona,convo.text);
-
- const atBottom =
- container.scrollTop + container.clientHeight >=
- container.scrollHeight - 80;
-
- window.TGRenderer?.appendMessage?.(
-  persona,
-  convo.text,
-  {
-   timestamp:new Date(),
-   type:"incoming",
-   bubblePreview:true
-  }
- );
-
- if(atBottom){
-  container.scrollTop = container.scrollHeight;
- }else{
-  unseenCount++;
-  updateJump();
-  showJump();
- }
-
-}
-
-/* =====================================================
-JOINER SIMULATION
-===================================================== */
-async function simulateJoiner(){
-
- while(true){
-
-  const persona = window.identity.getRandomPersona();
-
-  const welcome = random(JOINER_WELCOMES)
-  .replace("{user}",persona.name);
-
-  await liveMessage({
-   persona,
-   text:welcome
-  });
-
-  await new Promise(r=>setTimeout(r,rand(2000,6000)));
-
+ if(container.scrollTop < 120){
+  loadOlder();
  }
 
 }
@@ -286,34 +305,25 @@ INIT
 ===================================================== */
 async function init(){
 
- while(!window.TGRenderer?.appendMessage ||
-       !window.identity?.getRandomPersona ||
-       !window.queuedTyping){
+ while(
+  !window.TGRenderer?.appendMessage ||
+  !window.identity?.getRandomPersona ||
+  !window.realism
+ ){
   await new Promise(r=>setTimeout(r,50));
  }
 
- container = document.getElementById("tg-comments-container");
- jumpIndicator = document.getElementById("tg-jump-indicator");
- jumpText = document.getElementById("tg-jump-text");
+ container=document.getElementById("tg-comments-container");
 
  container?.addEventListener("scroll",handleScroll);
 
  generateTimeline();
 
- await preloadRecentHistory();
+ await preload();
 
- simulateJoiner();
-
- console.log("✅ Realism v10 loaded — full history + bubbles + join stickers + lazy loading");
+ console.log("🚀 Advanced History Loader v2 ready");
 
 }
-
-/* =====================================================
-API
-===================================================== */
-window.realism = window.realism || {};
-window.realism.liveMessage = liveMessage;
-window.realism.init = init;
 
 init();
 
