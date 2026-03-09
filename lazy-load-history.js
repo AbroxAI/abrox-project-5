@@ -1,5 +1,5 @@
-// full-hybrid-loader-v22-fixed.js — Fully synced + correct dates + live + joiners
-(function(){
+// full-hybrid-loader-v22-working.js — Fully synced + correct dates + live + joiners
+(async function(){
 "use strict";
 
 let liveInterval = null;
@@ -7,26 +7,27 @@ let joinerInterval = null;
 const SCROLL_BATCH_SIZE = 100;
 const BASE_DATE = new Date(2025,7,14,10,0,0); // Aug 14, 2025
 
+// Wait for everything
 async function waitForReady(timeout=60000){
     let waited = 0;
     while((!window.realism?.postMessage ||
            !window.realism?.generateComment ||
            !window.realism?.generateThreadedJoinerReplies ||
+           !window.identity?.SyntheticPool?.length ||
            !window.identity?.getRandomPersona ||
-           !window.identity?.SyntheticPool ||
            !window.TGRenderer?.appendMessage ||
            !window.TGRenderer?.showTyping ||
            !window.TGRenderer?.appendJoinSticker ||
            !window.queuedTyping ||
            !document.getElementById("tg-comments-container")) &&
-           waited < timeout){
+          waited < timeout){
         await new Promise(r=>setTimeout(r,50));
         waited += 50;
     }
     return !!document.getElementById("tg-comments-container");
 }
 
-// Multi-persona typing
+// Typing header
 async function showTypingHeader(personas){
     if(!personas.length) return;
     for(const p of personas) window.TGRenderer.showTyping?.(p);
@@ -35,29 +36,28 @@ async function showTypingHeader(personas){
     for(const p of personas) window.TGRenderer.hideTyping?.(p);
 }
 
-// Pick random reply target
+// Pick reply target
 function pickRandomReplyTarget(pool){
     if(!pool.length) return null;
     const recent = pool.slice(-50);
     return recent[Math.floor(Math.random()*recent.length)];
 }
 
-// Post a single message safely
+// Post message safely
 async function postRealismMessage(item, pool){
-    const persona = item.persona || window.identity.getRandomPersona();
-    item.persona = persona;
+    if(!item.persona) item.persona = window.identity.getRandomPersona();
 
-    if(!item.parentId && pool && pool.length && Math.random()<0.5){
+    if(!item.parentId && pool.length && Math.random()<0.5){
         const target = pickRandomReplyTarget(pool);
         if(target){ item.parentId = target.id; item.replyToText = target.text; }
     }
 
-    if(item.type==="joiner") await window.TGRenderer.appendJoinSticker([persona]);
-    await showTypingHeader([persona]);
+    if(item.type==="joiner") await window.TGRenderer.appendJoinSticker([item.persona]);
+    await showTypingHeader([item.persona]);
 
     await window.realism.postMessage({
         ...item,
-        persona,
+        persona: item.persona,
         timestamp: item.timestamp || new Date(),
         type: item.type || "incoming",
         parentId: item.parentId || null,
@@ -65,36 +65,38 @@ async function postRealismMessage(item, pool){
         disableImages:true
     });
 
-    if(item.type==="joiner") await window.realism.generateThreadedJoinerReplies({...item, persona});
+    if(item.type==="joiner") await window.realism.generateThreadedJoinerReplies({...item, persona:item.persona});
     if(item.type==="joiner" && window.TGRenderer?.highlightMessage) window.TGRenderer.highlightMessage(item.id);
 }
 
-// Generate historical pool with synced personas and correct timestamps
+// Generate full historical pool
 async function generateFullHistory(totalCount=20000){
-    if(!window.realism?.POOL) window.realism.POOL = [];
+    if(!window.realism.POOL) window.realism.POOL = [];
     const now = Date.now();
+
+    // Wait until identity pool is ready
+    while(!window.identity.SyntheticPool?.length) await new Promise(r=>setTimeout(r,50));
 
     while(window.realism.POOL.length < totalCount){
         const comment = window.realism.generateComment();
-        comment.persona = window.identity.getRandomPersona();
+        comment.persona = comment.persona || window.identity.getRandomPersona();
         const offset = (window.realism.POOL.length / totalCount) * (now - BASE_DATE.getTime());
         comment.timestamp = new Date(BASE_DATE.getTime() + offset);
         window.realism.POOL.push(comment);
     }
 
-    const poolClone = window.realism.POOL.slice().sort((a,b)=>a.timestamp-b.timestamp);
-    return poolClone;
+    return window.realism.POOL.slice().sort((a,b)=>a.timestamp-b.timestamp);
 }
 
-// Sequentially render all messages to avoid renderer overload
+// Sequential rendering
 async function renderFullHistory(pool){
     for(const item of pool){
         await postRealismMessage(item,pool);
-        await new Promise(r=>setTimeout(r,20)); // tiny delay for smooth rendering
+        await new Promise(r=>setTimeout(r,15)); // smooth rendering
     }
 }
 
-// Live injection
+// Live messages
 function startLiveInjection(pool){
     if(liveInterval) clearInterval(liveInterval);
     liveInterval = setInterval(async()=>{
@@ -129,13 +131,12 @@ async function setupFullHybridLoader(){
     startJoinerInjection();
 }
 
-// PUBLIC API
+// API
 window.historyLoader = {
     loadFullSyncedHistory: setupFullHybridLoader,
     initHybridLoader: setupFullHybridLoader
 };
 
-// Uncomment to auto-init
+// Auto-init
 // setupFullHybridLoader();
-
 })();
