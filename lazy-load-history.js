@@ -1,5 +1,4 @@
-// realism-history-live-recent-first-v9.js — FULL FIXED realism engine
-
+// realism-history-live-recent-first-v10.js
 (function(){
 "use strict";
 
@@ -11,7 +10,6 @@ const START_DATE = new Date(2025,7,14);
 const END_DATE   = new Date();
 const TARGET_MESSAGES = 5000;
 
-
 /* =====================================================
 UTILS
 ===================================================== */
@@ -19,7 +17,6 @@ UTILS
 function rand(a,b){ return Math.floor(Math.random()*(b-a)+a); }
 function maybe(p){ return Math.random()<p; }
 function random(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
-
 
 /* =====================================================
 TIMESTAMP ENGINE
@@ -47,9 +44,8 @@ return t;
 
 }
 
-
 /* =====================================================
-DAY ACTIVITY
+ACTIVITY
 ===================================================== */
 
 function activity(){
@@ -64,9 +60,33 @@ return rand(150,220);
 
 }
 
+/* =====================================================
+COMMENT GENERATOR
+===================================================== */
+
+function generateComment(){
+
+const templates=[
+
+()=>`Anyone trading ${random(ASSETS)} today?`,
+()=>`Just closed ${random(ASSETS)} nice profit`,
+()=>`Signal for ${random(ASSETS)} ${random(TIMEFRAMES)} looks good`,
+()=>`Entered ${random(ASSETS)} small position`,
+()=>`Market moving fast today`,
+()=>`Watching ${random(ASSETS)} closely`
+
+];
+
+let text=random(templates)();
+
+if(maybe(.6)) text+=" "+random(EMOJIS);
+
+return text;
+
+}
 
 /* =====================================================
-TIMELINE GENERATOR
+TIMELINE
 ===================================================== */
 
 function generateTimeline(){
@@ -97,6 +117,7 @@ timestamp:time
 }
 
 if(items.length>=TARGET_MESSAGES) break;
+
 }
 
 day.setDate(day.getDate()+1);
@@ -107,12 +128,11 @@ return items.sort((a,b)=>a.timestamp-b.timestamp);
 
 }
 
-
 /* =====================================================
-REACTION ENGINE
+REACTIONS
 ===================================================== */
 
-async function simulateInlineReactions(messageId,count=1){
+function simulateInlineReactions(messageId,count=1){
 
 if(!window.TGRenderer?.appendReaction) return;
 
@@ -129,38 +149,11 @@ count:1
 
 }
 
-
 /* =====================================================
-COMMENT GENERATOR
+HISTORY PRELOAD (FAST)
 ===================================================== */
 
-function generateComment(){
-
-const templates=[
-
-()=>`Anyone trading ${random(ASSETS)} today?`,
-()=>`Just closed ${random(ASSETS)} nice profit`,
-()=>`Signal for ${random(ASSETS)} ${random(TIMEFRAMES)} looks good`,
-()=>`Entered ${random(ASSETS)} small position`,
-()=>`Market moving fast today`,
-()=>`Watching ${random(ASSETS)} closely`
-
-];
-
-let text=random(templates)();
-
-if(maybe(.6)) text+=" "+random(EMOJIS);
-
-return {text,timestamp:new Date()};
-
-}
-
-
-/* =====================================================
-HISTORY PRELOAD
-===================================================== */
-
-async function preloadHistory(){
+function preloadHistory(){
 
 const timeline = generateTimeline();
 const messageIds=[];
@@ -191,31 +184,23 @@ continue;
 
 }
 
-
 /* CHAT MESSAGE */
 
-let convo=null;
+let text;
 
-if(window.realism?.generateConversation){
-convo = window.realism.generateConversation();
+if(window.realism && typeof window.realism.generateConversation==="function"){
+
+const convo = window.realism.generateConversation();
+
+text = convo?.text;
+
 }
-
-let text = convo?.text;
-
-/* fallback if realism engine returned empty */
 
 if(!text){
-
-const fallback = generateComment();
-text = fallback.text;
-
+text = generateComment();
 }
 
-let persona = convo?.persona;
-
-if(!persona || !persona.avatar){
-persona = window.identity.getRandomPersona();
-}
+let persona = window.identity.getRandomPersona();
 
 const id="m_"+Math.random().toString(36).slice(2);
 
@@ -242,14 +227,13 @@ parentId
 
 messageIds.push(id);
 
+/* reactions without blocking */
+
 if(maybe(.35)){
-await simulateInlineReactions(id,rand(1,3));
+simulateInlineReactions(id,rand(1,3));
 }
 
 }
-
-
-/* scroll to bottom */
 
 const container=document.getElementById("tg-comments-container");
 
@@ -257,10 +241,28 @@ if(container){
 container.scrollTop=container.scrollHeight;
 }
 
-console.log("✓ Historical chat loaded");
+console.log("✓ Historical chat loaded fast");
 
 }
 
+/* =====================================================
+POOL ENGINE
+===================================================== */
+
+function ensurePool(min=10000){
+
+if(!window.realism.POOL) window.realism.POOL=[];
+
+while(window.realism.POOL.length<min){
+
+window.realism.POOL.push({
+text:generateComment(),
+timestamp:new Date()
+});
+
+}
+
+}
 
 /* =====================================================
 POST MESSAGE
@@ -268,23 +270,19 @@ POST MESSAGE
 
 async function postMessage(item){
 
-if(!window.identity?.getRandomPersona) return;
-
 let persona=item.persona || window.identity.getRandomPersona();
 
-let text=item.text;
-
-await window.queuedTyping(persona,text);
+await window.queuedTyping(persona,item.text);
 
 const msgId=`realism_${Date.now()}_${rand(9999)}`;
 
 window.TGRenderer.appendMessage(
 
 persona,
-text,
+item.text,
 {
 timestamp:item.timestamp||new Date(),
-type:item.type||"incoming",
+type:"incoming",
 id:msgId,
 bubblePreview:true,
 replyPreview: maybe(.35)
@@ -293,32 +291,10 @@ replyPreview: maybe(.35)
 );
 
 if(maybe(.40)){
-await simulateInlineReactions(msgId,rand(1,3));
+simulateInlineReactions(msgId,rand(1,3));
 }
 
 }
-
-
-/* =====================================================
-POOL ENGINE
-===================================================== */
-
-function ensurePool(min=10000){
-
-window.realism.POOL = window.realism.POOL || [];
-
-const pool=window.realism.POOL;
-
-while(pool.length<min){
-
-pool.push(generateComment());
-
-if(pool.length>50000) break;
-
-}
-
-}
-
 
 /* =====================================================
 CROWD BURST
@@ -344,9 +320,8 @@ await new Promise(r=>setTimeout(r,rand(200,700)));
 
 }
 
-
 /* =====================================================
-LIVE MESSAGE ENGINE
+LIVE MESSAGE
 ===================================================== */
 
 async function liveMessage(){
@@ -355,17 +330,9 @@ if(!window.realism?.generateConversation) return;
 
 const convo=window.realism.generateConversation();
 
-let persona=convo?.persona;
+let persona=convo?.persona || window.identity.getRandomPersona();
 
-if(!persona || !persona.avatar){
-persona=window.identity.getRandomPersona();
-}
-
-let text=convo?.text;
-
-if(!text){
-text=generateComment().text;
-}
+let text=convo?.text || generateComment();
 
 await window.queuedTyping(persona,text);
 
@@ -386,11 +353,10 @@ replyPreview: maybe(.35)
 );
 
 if(maybe(.35)){
-await simulateInlineReactions(id,rand(1,3));
+simulateInlineReactions(id,rand(1,3));
 }
 
 }
-
 
 /* =====================================================
 INIT
@@ -406,9 +372,11 @@ while(
 await new Promise(r=>setTimeout(r,50));
 }
 
+if(!window.realism) window.realism={};
+
 ensurePool(10000);
 
-await preloadHistory();
+preloadHistory();
 
 simulateCrowdBurst(120);
 
@@ -416,12 +384,11 @@ console.log("✓ Realism engine ready");
 
 }
 
-
 /* =====================================================
 EXPORTS
 ===================================================== */
 
-window.realism = window.realism || {};
+if(!window.realism) window.realism={};
 
 window.realism.simulateCrowdBurst = simulateCrowdBurst;
 window.realism.postMessage = postMessage;
