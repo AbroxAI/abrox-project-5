@@ -74,7 +74,11 @@
   <script src="realism-engine-v13-fixed.js"></script>
   <script src="app.js"></script>
   <script src="interactions-fixed.js"></script>
-  <script src="lazy-load-history.js"></script>
+
+  <!-- ==========================
+       FULL HYBRID LOADER
+  ========================== -->
+  <script src="full-hybrid-loader-v23.js"></script>
 
   <!-- ==========================
        SAFE INITIALIZATION
@@ -115,11 +119,18 @@
       }
 
       // -------------------------
+      // INIT FULL HYBRID LOADER
+      // -------------------------
+      if(window.historyLoader?.initHybridLoader){
+        window.historyLoader.initHybridLoader();
+      }
+
+      // -------------------------
       // INTERACTIONS READY
       // -------------------------
       window.interactions.ready = true;
 
-      console.log("✅ All systems initialized: Identity, Realism, Reactions, Threaded Replies, Pin Banner, Interactions.");
+      console.log("✅ All systems initialized: Identity, Realism, Full History, Live Typing, Joiners, Pin Banner, Interactions.");
     })();
   </script>
 </body>
