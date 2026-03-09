@@ -31,7 +31,7 @@ function activity(){
     return rand(150,220); 
 }
 
-// --- generate timeline
+// --- Generate historical timeline
 function generateTimeline(total){
     const items=[];
     let day = new Date(START_DATE);
@@ -51,27 +51,46 @@ function generateTimeline(total){
     return items.sort((a,b)=>a.timestamp-b.timestamp);
 }
 
-// --- post historic
+// --- Post historic messages (prepend-only, correct past timestamps)
+let headerInserted = false;
+let firstHistoricMsgId = null;
 async function postHistoric(item){
     const persona = item.persona || window.identity.getRandomPersona();
-    const text = item.type === "join" 
-        ? `${persona.name} joined the group` 
+    const text = item.type === "join"
+        ? `${persona.name} joined the group`
         : window.realism.generateConversation?.()?.text || "Historic message";
 
-    window.realism.POOL = window.realism.POOL || [];
-    window.realism.POOL.push({ text, timestamp: item.timestamp, persona });
+    window.realism.HISTORIC_POOL = window.realism.HISTORIC_POOL || [];
+    window.realism.HISTORIC_POOL.push({ text, timestamp: item.timestamp, persona });
 
-    // prepend as historic type
+    // Insert "Historical Messages" header once
+    if(!headerInserted){
+        const headerId = `hist_header_${Date.now()}`;
+        window.TGRenderer.prependMessage({name:"System"}, "📜 Historical Messages", {
+            timestamp: item.timestamp,
+            type:"system-header",
+            id: headerId
+        });
+        headerInserted = true;
+    }
+
     const msgId = `hist_${Date.now()}_${rand(9999)}`;
-    window.TGRenderer.prependMessage(persona, text, { timestamp: item.timestamp, type:"historic", id: msgId });
+    window.TGRenderer.prependMessage(persona, text, {
+        timestamp: item.timestamp,
+        type:"historic",
+        id: msgId
+    });
     item.id = msgId;
 
-    if(item.type === "join" && window.realism.generateThreadedJoinerReplies){
+    // Mark the first historic message to scroll to
+    if(!firstHistoricMsgId) firstHistoricMsgId = msgId;
+
+    if(item.type==="join" && window.realism.generateThreadedJoinerReplies){
         await window.realism.generateThreadedJoinerReplies({ persona, id: msgId });
     }
 }
 
-// --- load history in chunks
+// --- Load history in chunks
 async function loadHistoryInChunks(){
     const timeline = generateTimeline(TOTAL_HISTORICAL);
     for(let i=0; i<timeline.length; i+=CHUNK_SIZE){
@@ -79,61 +98,79 @@ async function loadHistoryInChunks(){
         await Promise.all(chunk.map(postHistoric));
         await new Promise(r=>setTimeout(r, CHUNK_DELAY));
     }
-    container.scrollTop = 0; // oldest at top
+    // Scroll to first historic message after all prepends
+    const firstMsgElem = document.getElementById(firstHistoricMsgId);
+    if(firstMsgElem){
+        firstMsgElem.scrollIntoView({behavior:"smooth", block:"start"});
+    } else {
+        container.scrollTop = 0;
+    }
     console.log(`✅ Full historical chat loaded (${timeline.length} messages)`);
 }
 
-// --- live messages
-async function liveMessage(){
+// --- Live message
+async function postLive(){
     const convo = window.realism.generateConversation?.() || {text:"", persona:window.identity.getRandomPersona()};
     await window.queuedTyping(convo.persona, convo.text);
 
+    const now = new Date();
     const scrollAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 80;
-    window.TGRenderer.appendMessage(convo.persona, convo.text, {timestamp:new Date(), type:"incoming", bubblePreview:true});
+
+    window.realism.POOL = window.realism.POOL || [];
+    const liveItem = { ...convo, timestamp: now };
+    window.realism.POOL.push(liveItem);
+
+    window.TGRenderer.appendMessage(convo.persona, convo.text, {
+        timestamp: now,
+        type:"incoming",
+        bubblePreview:true
+    });
+
     if(scrollAtBottom){ container.scrollTop = container.scrollHeight; }
     else { unseenCount++; updateJump(); showJump(); }
 }
 
-// --- ensure pool
-function ensurePool(min=10000){
+// --- Ensure live pool
+function ensureLivePool(min=10000){
     window.realism.POOL = window.realism.POOL || [];
     while(window.realism.POOL.length < min){
-        window.realism.POOL.push(window.realism.generateComment());
-        if(window.realism.POOL.length>50000) break;
+        const msg = window.realism.generateComment();
+        msg.timestamp = new Date();
+        window.realism.POOL.push(msg);
+        if(window.realism.POOL.length > 50000) break;
     }
 }
 
-// --- burst crowd
+// --- Crowd burst
 async function simulateCrowdBurst(total=150){
-    ensurePool(total);
+    ensureLivePool(total);
     while(total>0 && window.realism.POOL.length>0){
         const burstCount = rand(3,8);
         const burst = window.realism.POOL.splice(0,burstCount);
         await Promise.all(burst.map(item=>window.realism.postMessage(item)));
-        await new Promise(r=>setTimeout(r,rand(100,500)));
+        await new Promise(r=>setTimeout(r, rand(100,500)));
     }
 }
 
-// --- init
+// --- Init
 async function init(){
-    // wait for core systems
     while(!window.identity?.SyntheticPool?.length || !window.TGRenderer?.prependMessage || !window.TGRenderer?.appendMessage || !window.queuedTyping || !window.realism?.simulate){
         await new Promise(r=>setTimeout(r,50));
     }
 
     if(window.realism?.OLD_POOL) window.realism.injectHistoricalPool(window.realism.OLD_POOL);
 
-    // --- load historical first
+    // 1️⃣ Load historical first
     await loadHistoryInChunks();
 
-    // --- then start realism live
-    ensurePool(20000);
+    // 2️⃣ Start live engine
+    ensureLivePool(20000);
     simulateCrowdBurst(200);
-    setInterval(liveMessage, rand(12000,40000));
+    setInterval(postLive, rand(12000,40000));
     window.realism.simulate();
     window.realism.simulateJoiner(45000,120000);
 
-    console.log("✅ Fully synced: historical + full realism pool + live + burst + threaded replies");
+    console.log("✅ Fully synced: historical first + header + scroll-to-start + live now + full realism pool + threaded replies");
 }
 
 init();
