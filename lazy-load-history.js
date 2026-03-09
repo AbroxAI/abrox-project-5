@@ -1,4 +1,4 @@
-// realism-history-loader-v11.js — CLEAN stable loader (avatars, join stickers, reactions, reply previews)
+// realism-history-loader-v12.js — advanced realistic history + reactions + reply threads
 
 (function(){
 "use strict";
@@ -7,9 +7,9 @@
 CONFIG
 ===================================================== */
 
-const START_DATE = new Date(2025,7,14); 
-const END_DATE   = new Date();
-const TARGET_MESSAGES = 5000;
+const START_DATE = new Date(2025,7,14)
+const END_DATE   = new Date()
+const TARGET_MESSAGES = 4500
 
 
 /* =====================================================
@@ -39,17 +39,18 @@ rand(0,59)
 )
 
 if(t.getTime() <= lastTime){
-t = new Date(lastTime + rand(20000,90000))
+t = new Date(lastTime + rand(20000,80000))
 }
 
 lastTime = t.getTime()
 
 return t
+
 }
 
 
 /* =====================================================
-DAY ACTIVITY
+ACTIVITY DISTRIBUTION
 ===================================================== */
 
 function activity(){
@@ -71,19 +72,18 @@ TIMELINE
 
 function generateTimeline(){
 
-const items = []
+const items=[]
+let day=new Date(START_DATE)
 
-let day = new Date(START_DATE)
+while(day<=END_DATE && items.length<TARGET_MESSAGES){
 
-while(day <= END_DATE && items.length < TARGET_MESSAGES){
-
-const count = activity()
+const count=activity()
 
 for(let i=0;i<count;i++){
 
-const time = nextTimestamp(day)
+const time=nextTimestamp(day)
 
-if(maybe(.07)){
+if(maybe(.06)){
 items.push({
 type:"join",
 persona:window.identity.getRandomPersona(),
@@ -97,7 +97,7 @@ timestamp:time
 })
 }
 
-if(items.length >= TARGET_MESSAGES) break
+if(items.length>=TARGET_MESSAGES) break
 }
 
 day.setDate(day.getDate()+1)
@@ -110,28 +110,52 @@ return items.sort((a,b)=>a.timestamp-b.timestamp)
 
 
 /* =====================================================
-HISTORICAL LOADER
+REACTION SIMULATOR
+===================================================== */
+
+async function simulateReactions(messageId){
+
+if(!window.TGRenderer?.appendReaction) return
+
+const count = rand(1,3)
+
+for(let i=0;i<count;i++){
+
+const reaction = random(REACTIONS)
+
+window.TGRenderer.appendReaction(messageId,reaction)
+
+await new Promise(r=>setTimeout(r,rand(200,700)))
+
+}
+
+}
+
+
+/* =====================================================
+HISTORY ENGINE
 ===================================================== */
 
 async function preloadHistory(){
 
 const timeline = generateTimeline()
+const messageIds = []
 
 for(const item of timeline){
 
-/* ---------------- JOIN STICKER ---------------- */
+/* JOIN EVENT */
 
 if(item.type==="join"){
 
-const msgId = "join_"+Date.now()+"_"+rand(10000)
+const id="join_"+Date.now()+"_"+rand(9999)
 
 window.TGRenderer.prependMessage(
 
-null,
-"", // IMPORTANT: empty text for system sticker
+item.persona,
+"",
 
 {
-id:msgId,
+id,
 timestamp:item.timestamp,
 type:"system",
 event:"join",
@@ -144,21 +168,24 @@ continue
 }
 
 
-/* ---------------- CHAT MESSAGE ---------------- */
+/* CHAT MESSAGE */
 
 const convo = window.realism.generateConversation()
-
 if(!convo || !convo.text) continue
-
-/* Prevent fake join text */
 
 if(convo.text.includes("joined the group")) continue
 
 const persona = convo.persona || window.identity.getRandomPersona()
 
-const id = "m_"+Math.random().toString(36).slice(2)
+const id="m_"+Math.random().toString(36).slice(2)
 
-/* IMPORTANT: pass persona object ONLY */
+let parentId=null
+
+/* simulate reply threads */
+
+if(messageIds.length>5 && maybe(.25)){
+parentId=random(messageIds)
+}
 
 window.TGRenderer.prependMessage(
 
@@ -168,11 +195,13 @@ convo.text,
 {
 id,
 timestamp:item.timestamp,
-type:"historic",
+type:"incoming",
+
+parentId,
 
 bubblePreview:true,
 
-replyPreview: maybe(.35),
+replyPreview: parentId?true:maybe(.25),
 
 reactionPill: maybe(.30)
 
@@ -180,20 +209,30 @@ reactionPill: maybe(.30)
 
 )
 
+messageIds.push(id)
+
+/* simulate reactions */
+
+if(maybe(.35)){
+await simulateReactions(id)
 }
 
-/* auto scroll */
+/* yield occasionally */
 
-const container = document.getElementById("tg-comments-container")
-
-if(container){
-container.scrollTop = container.scrollHeight
+if(Math.random()<0.01){
+await new Promise(r=>setTimeout(r,0))
 }
-
-console.log("✓ historical chat loaded")
 
 }
 
+/* scroll */
+
+const container=document.getElementById("tg-comments-container")
+if(container) container.scrollTop=container.scrollHeight
+
+console.log("✓ advanced history loaded")
+
+}
 
 
 /* =====================================================
@@ -203,14 +242,13 @@ LIVE MESSAGE ENGINE
 async function liveMessage(){
 
 const convo = window.realism.generateConversation()
-
 if(!convo) return
 
 const persona = convo.persona || window.identity.getRandomPersona()
 
 await window.queuedTyping(persona,convo.text)
 
-const msgId = "live_"+Date.now()+"_"+rand(9999)
+const id="live_"+Date.now()+"_"+rand(9999)
 
 window.TGRenderer.appendMessage(
 
@@ -218,7 +256,7 @@ persona,
 convo.text,
 
 {
-id:msgId,
+id,
 timestamp:new Date(),
 
 type:"incoming",
@@ -227,11 +265,17 @@ bubblePreview:true,
 
 replyPreview: maybe(.40),
 
-reactionPill: maybe(.30)
+reactionPill: maybe(.35)
 
 }
 
 )
+
+/* other members react */
+
+if(maybe(.40)){
+await simulateReactions(id)
+}
 
 }
 
@@ -242,34 +286,29 @@ INIT
 
 async function init(){
 
-/* wait for engines */
-
 while(
-
 !window.identity?.getRandomPersona ||
 !window.realism?.generateConversation ||
 !window.TGRenderer?.prependMessage
-
 ){
 await new Promise(r=>setTimeout(r,50))
 }
 
 await preloadHistory()
 
-console.log("✓ realism loader ready")
+console.log("✓ realism v12 ready")
 
 }
 
 
 /* =====================================================
-EXPORTS
+EXPORT
 ===================================================== */
 
-window.realism = window.realism || {}
+if(!window.realism) window.realism={}
 
-window.realism.liveMessage = liveMessage
-window.realism.init = init
-
+window.realism.liveMessage=liveMessage
+window.realism.init=init
 
 init()
 
