@@ -1,9 +1,8 @@
 (async function(){
 "use strict";
 
-const START_DATE = new Date(2025,7,14); // August 14, 2025
-const END_DATE = new Date(Date.now() - 86400000); // yesterday
-const TOTAL_HISTORICAL = 50000;
+const START_DATE = new Date(2025,7,14);
+const END_DATE = new Date(Date.now()-86400000);
 const CHUNK_SIZE = 200;
 const CHUNK_DELAY = 50;
 
@@ -18,7 +17,7 @@ function random(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 
 let lastTime = 0;
 function timestamp(day){
-    let t = new Date(day.getFullYear(), day.getMonth(), day.getDate(), rand(7,22), rand(0,60), rand(0,60));
+    let t = new Date(day.getFullYear(), day.getMonth(), day.getDate(), rand(7,22), rand(0,59), rand(0,59));
     if(t.getTime() <= lastTime) t = new Date(lastTime + rand(15000,90000));
     lastTime = t.getTime();
     return t;
@@ -32,82 +31,71 @@ function activity(){
     return rand(150,220); 
 }
 
-// --- Generate full historical timeline
-function generateTimeline(total){
+// --- Generate historical timeline
+function generateTimeline(){
     const items=[];
     let day = new Date(START_DATE);
-    while(day <= END_DATE && items.length < total){
+    while(day <= END_DATE){
         const count = activity();
         for(let i=0;i<count;i++){
             const time = timestamp(day);
             if(maybe(0.12) && window.identity?.getRandomPersona){
-                items.push({type:"join", persona:window.identity.getRandomPersona(), timestamp:time});
+                items.push({type:"joiner", persona:window.identity.getRandomPersona(), timestamp:time});
             } else {
-                items.push({type:"chat", timestamp:time});
+                items.push({type:"historic", timestamp:time});
             }
-            if(items.length >= total) break;
         }
         day.setDate(day.getDate()+1);
     }
     return items.sort((a,b)=>a.timestamp-b.timestamp);
 }
 
-// --- Post historical messages (prepend-only)
+// --- Post historic messages in chunks
 let headerInserted = false;
 let firstHistoricMsgId = null;
-
 async function postHistoric(item){
     const persona = item.persona || window.identity.getRandomPersona();
-    const text = item.type==="join" 
-        ? `${persona.name} joined the group! 🎉`
-        : window.realism.generateComment?.()?.text;
-
-    window.realism.HISTORIC_POOL = window.realism.HISTORIC_POOL || [];
-    window.realism.HISTORIC_POOL.push({ text, timestamp: item.timestamp, persona });
+    let text = item.type==="joiner"
+        ? `${persona.name} joined the group 🎉`
+        : window.realism.generateComment().text;
 
     if(!headerInserted){
         const headerId = `hist_header_${Date.now()}`;
-        window.TGRenderer.prependMessage({name:"System"}, "📜 Historical Messages", {
-            timestamp: item.timestamp,
-            type:"system-header",
-            id: headerId
-        });
+        window.TGRenderer.prependMessage({name:"System"}, "📜 Historical Messages", {timestamp: item.timestamp, type:"system-header", id: headerId});
         headerInserted = true;
     }
 
     const msgId = `hist_${Date.now()}_${rand(9999)}`;
-    if(item.type==="join"){
+    if(item.type==="joiner"){
         await window.realism.postJoinSticker({ persona, id: msgId });
+        item.id = msgId;
     } else {
         await window.realism.postMessage({ persona, text, timestamp: item.timestamp, type:"historic", id: msgId });
+        item.id = msgId;
     }
 
-    item.id = msgId;
     if(!firstHistoricMsgId) firstHistoricMsgId = msgId;
 }
 
-// --- Load history in chunks
 async function loadHistoryInChunks(){
-    const timeline = generateTimeline(TOTAL_HISTORICAL);
-    for(let i=0; i<timeline.length; i+=CHUNK_SIZE){
-        const chunk = timeline.slice(i, i+CHUNK_SIZE);
+    const timeline = generateTimeline();
+    for(let i=0;i<timeline.length;i+=CHUNK_SIZE){
+        const chunk = timeline.slice(i,i+CHUNK_SIZE);
         await Promise.all(chunk.map(postHistoric));
         await new Promise(r=>setTimeout(r, CHUNK_DELAY));
     }
 
     const firstMsgElem = document.getElementById(firstHistoricMsgId);
-    if(firstMsgElem){
-        firstMsgElem.scrollIntoView({behavior:"smooth", block:"start"});
-    } else {
-        container.scrollTop = 0;
-    }
+    if(firstMsgElem) firstMsgElem.scrollIntoView({behavior:"smooth", block:"start"});
+    else container.scrollTop = 0;
+
     console.log(`✅ Full historical chat loaded (${timeline.length} messages)`);
 }
 
-// --- Post live message (current timestamp)
+// --- Post live message
 async function postLive(){
-    const convo = window.realism.generateComment?.() || {text:"", persona:window.identity.getRandomPersona()};
-    await window.realism.realisticTyping(convo.persona, convo.text);
+    const convo = window.realism.generateConversation?.() || {text:"", persona:window.identity.getRandomPersona()};
+    await window.queuedTyping(convo.persona, convo.text,{speed:rand(50,120)});
 
     const now = new Date();
     const scrollAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 80;
@@ -122,28 +110,6 @@ async function postLive(){
     else { unseenCount++; updateJump(); showJump(); }
 }
 
-// --- Ensure live pool
-function ensureLivePool(min=10000){
-    window.realism.POOL = window.realism.POOL || [];
-    while(window.realism.POOL.length < min){
-        const msg = window.realism.generateComment();
-        msg.timestamp = new Date();
-        window.realism.POOL.push(msg);
-        if(window.realism.POOL.length > 50000) break;
-    }
-}
-
-// --- Crowd burst for live messages
-async function simulateCrowdBurst(total=150){
-    ensureLivePool(total);
-    while(total>0 && window.realism.POOL.length>0){
-        const burstCount = rand(3,8);
-        const burst = window.realism.POOL.splice(0,burstCount);
-        await Promise.all(burst.map(item=>window.realism.postMessage(item)));
-        await new Promise(r=>setTimeout(r, rand(100,500)));
-    }
-}
-
 // --- Jump indicator
 function updateJump() {
     if (!jumpText) return;
@@ -156,33 +122,50 @@ jumpIndicator?.addEventListener('click',()=>{
     container.scrollTop = container.scrollHeight;
     hideJump();
 });
-
 container.addEventListener('scroll',()=>{
     const distance = container.scrollHeight - container.scrollTop - container.clientHeight;
     if(distance < 80) hideJump();
 });
 
-// --- Init loader
+// --- Init
 async function init(){
-    while(!window.identity?.getRandomPersona || !window.TGRenderer?.prependMessage || !window.TGRenderer?.appendMessage || !window.realism?.simulate){
+    while(!window.identity?.SyntheticPool || !window.TGRenderer?.prependMessage || !window.TGRenderer?.appendMessage || !window.queuedTyping || !window.realism?.simulate){
         await new Promise(r=>setTimeout(r,50));
     }
 
     if(window.realism?.OLD_POOL) window.realism.injectHistoricalPool(window.realism.OLD_POOL);
 
-    // 1️⃣ Load historical first
-    await loadHistoryInChunks();
+    await loadHistoryInChunks(); // Historical first
 
-    // 2️⃣ Start live engine
-    ensureLivePool(20000);
-    simulateCrowdBurst(200);
-    setInterval(postLive, rand(12000,40000));
+    ensureLivePool(20000);   // Fill live pool
+    simulateCrowdBurst(200);  // Start live burst
+    setInterval(postLive, rand(15000,40000));  // continuous live
 
-    // 3️⃣ Realism engine live
-    window.realism.simulate();
-    window.realism.simulateJoiner(45000,120000);
+    window.realism.simulate();  
+    window.realism.simulateJoiner(45000,120000); // joiners
+    console.log("✅ Fully synced: history + joiners + live + reactions + threaded replies + realistic typing");
+}
 
-    console.log("✅ Fully synced: historical + join sticker + live + reaction/reply + realistic typing");
+// --- Ensure live pool has enough messages
+function ensureLivePool(min=10000){
+    window.realism.POOL = window.realism.POOL || [];
+    while(window.realism.POOL.length < min){
+        const msg = window.realism.generateComment();
+        msg.timestamp = new Date();
+        window.realism.POOL.push(msg);
+        if(window.realism.POOL.length > 50000) break;
+    }
+}
+
+// --- Crowd burst simulation
+async function simulateCrowdBurst(total=150){
+    ensureLivePool(total);
+    while(total>0 && window.realism.POOL.length>0){
+        const burstCount = rand(3,8);
+        const burst = window.realism.POOL.splice(0,burstCount);
+        await Promise.all(burst.map(item=>window.realism.postMessage(item)));
+        await new Promise(r=>setTimeout(r, rand(100,500)));
+    }
 }
 
 init();
