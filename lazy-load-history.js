@@ -1,8 +1,8 @@
 (async function(){
 "use strict";
 
-const START_DATE = new Date(2025,7,14);
-const END_DATE = new Date(Date.now()-86400000);
+const START_DATE = new Date(2025,7,14); // August 14, 2025
+const END_DATE = new Date(Date.now() - 86400000); // yesterday
 const TOTAL_HISTORICAL = 50000;
 const CHUNK_SIZE = 200;
 const CHUNK_DELAY = 50;
@@ -23,6 +23,7 @@ function timestamp(day){
     lastTime = t.getTime();
     return t;
 }
+
 function activity(){ 
     const r=Math.random(); 
     if(r<0.45) return rand(3,8); 
@@ -31,7 +32,7 @@ function activity(){
     return rand(150,220); 
 }
 
-// --- Generate historical timeline
+// --- Generate full historical timeline
 function generateTimeline(total){
     const items=[];
     let day = new Date(START_DATE);
@@ -51,19 +52,19 @@ function generateTimeline(total){
     return items.sort((a,b)=>a.timestamp-b.timestamp);
 }
 
-// --- Post historic messages (prepend-only, correct past timestamps, use realism engine)
+// --- Post historical messages (prepend-only)
 let headerInserted = false;
 let firstHistoricMsgId = null;
+
 async function postHistoric(item){
     const persona = item.persona || window.identity.getRandomPersona();
     const text = item.type==="join" 
-        ? `${persona.name} joined the group` 
+        ? `${persona.name} joined the group! 🎉`
         : window.realism.generateComment?.()?.text;
 
     window.realism.HISTORIC_POOL = window.realism.HISTORIC_POOL || [];
     window.realism.HISTORIC_POOL.push({ text, timestamp: item.timestamp, persona });
 
-    // Insert Historical Header once
     if(!headerInserted){
         const headerId = `hist_header_${Date.now()}`;
         window.TGRenderer.prependMessage({name:"System"}, "📜 Historical Messages", {
@@ -82,8 +83,6 @@ async function postHistoric(item){
     }
 
     item.id = msgId;
-
-    // Mark first historic message for scroll
     if(!firstHistoricMsgId) firstHistoricMsgId = msgId;
 }
 
@@ -95,7 +94,7 @@ async function loadHistoryInChunks(){
         await Promise.all(chunk.map(postHistoric));
         await new Promise(r=>setTimeout(r, CHUNK_DELAY));
     }
-    // Scroll to first historic message after all prepends
+
     const firstMsgElem = document.getElementById(firstHistoricMsgId);
     if(firstMsgElem){
         firstMsgElem.scrollIntoView({behavior:"smooth", block:"start"});
@@ -105,10 +104,10 @@ async function loadHistoryInChunks(){
     console.log(`✅ Full historical chat loaded (${timeline.length} messages)`);
 }
 
-// --- Post live message (current timestamp, realism engine)
+// --- Post live message (current timestamp)
 async function postLive(){
-    const convo = window.realism.generateConversation?.() || {text:"", persona:window.identity.getRandomPersona()};
-    await window.queuedTyping(convo.persona, convo.text,{speed:rand(25,70)});
+    const convo = window.realism.generateComment?.() || {text:"", persona:window.identity.getRandomPersona()};
+    await window.realism.realisticTyping(convo.persona, convo.text);
 
     const now = new Date();
     const scrollAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 80;
@@ -163,9 +162,9 @@ container.addEventListener('scroll',()=>{
     if(distance < 80) hideJump();
 });
 
-// --- Init
+// --- Init loader
 async function init(){
-    while(!window.identity?.SyntheticPool?.length || !window.TGRenderer?.prependMessage || !window.TGRenderer?.appendMessage || !window.queuedTyping || !window.realism?.simulate){
+    while(!window.identity?.getRandomPersona || !window.TGRenderer?.prependMessage || !window.TGRenderer?.appendMessage || !window.realism?.simulate){
         await new Promise(r=>setTimeout(r,50));
     }
 
@@ -178,10 +177,12 @@ async function init(){
     ensureLivePool(20000);
     simulateCrowdBurst(200);
     setInterval(postLive, rand(12000,40000));
+
+    // 3️⃣ Realism engine live
     window.realism.simulate();
     window.realism.simulateJoiner(45000,120000);
 
-    console.log("✅ Fully synced: historical first + join sticker + live now + reaction/reply support + threaded replies + realistic typing");
+    console.log("✅ Fully synced: historical + join sticker + live + reaction/reply + realistic typing");
 }
 
 init();
