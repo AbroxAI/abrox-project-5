@@ -1,9 +1,9 @@
-// realism-engine-v27-full.js — Full realism + history + joiners + reactions + threaded replies + highlights + typing
+// realism-engine-v28.2-full.js — Fully fixed realism engine v28.2
 (function(){
 "use strict";
 
 /* =====================================================
-POOLS
+POOLS / DATA
 ===================================================== */
 const ASSETS=["EUR/USD","USD/JPY","GBP/USD","AUD/USD","USD/CHF","USD/CAD","NZD/USD","EUR/JPY","EUR/GBP","EUR/AUD","EUR/CHF","GBP/JPY","GBP/AUD","GBP/CHF","AUD/JPY","CAD/JPY","CHF/JPY","AUD/NZD","BTC/USD","ETH/USD","SOL/USD","ADA/USD","DOT/USD","MATIC/USD","LINK/USD","AVAX/USD","DOGE/USD","XRP/USD","LTC/USD","BNB/USD","SHIB/USD","LUNA/USD","ATOM/USD","FIL/USD","TRX/USD","US30","NAS100","SPX500","US500","DAX40","FTSE100","CAC40","NIKKEI225","RUSSELL2000","HSI50","GOLD","SILVER","PLATINUM","PALLADIUM","WTI","BRENT","NATGAS","COPPER","ALUMINUM","SUGAR","COFFEE","SOYBEAN","CORN","OIL","RICE"];
 const BROKERS=["IQ Option","Binomo","Pocket Option","Deriv","Olymp Trade","Binary.com","Quotex","ExpertOption","eToro","Plus500","IG","XM","FXTM","Pepperstone","IC Markets","Exness","Oanda","FXPro","Bybit","Binance","Kraken","OKX","KuCoin","Gate.io","Huobi","Bitfinex","Coinbase","Poloniex"];
@@ -41,26 +41,29 @@ function mark(text){const fp=hash(text.toLowerCase()); if(GENERATED.has(fp)) ret
 /* =====================================================
 COMMENT GENERATOR
 ===================================================== */
-const BASE_DATE=new Date(2025,7,14,10,0,0);
+const BASE_DATE = new Date(2025,7,14,10,0,0);
 function generateTimestamp(daysBack=120){return new Date(BASE_DATE.getTime()-Math.random()*daysBack*86400000);}
-function generateComment(){let templates=[()=>`Guys, ${random(TESTIMONIALS)}`,()=>`Anyone trading ${random(ASSETS)} on ${random(BROKERS)}?`,()=>`Signal for ${random(ASSETS)} ${random(TIMEFRAMES)} is ${random(RESULT_WORDS)}`,()=>`Closed ${random(ASSETS)} on ${random(TIMEFRAMES)} — ${random(RESULT_WORDS)}`,()=>`Scalped ${random(ASSETS)} on ${random(BROKERS)}, result ${random(RESULT_WORDS)}`]; let text=random(templates)(); if(maybe(0.35)) text+=" — "+random(["good execution","tight stop","wide stop","no slippage","perfect timing"]); if(maybe(0.6)) text+=" "+random(EMOJIS); let tries=0; while(!mark(text)&&tries<60){ text+=" "+rand(999); tries++; } return { text, timestamp:generateTimestamp() };
+function generateComment(){let templates=[()=>`Guys, ${random(TESTIMONIALS)}`,()=>`Anyone trading ${random(ASSETS)} on ${random(BROKERS)}?`,()=>`Signal for ${random(ASSETS)} ${random(TIMEFRAMES)} is ${random(RESULT_WORDS)}`,()=>`Closed ${random(ASSETS)} on ${random(TIMEFRAMES)} — ${random(RESULT_WORDS)}`,()=>`Scalped ${random(ASSETS)} on ${random(BROKERS)}, result ${random(RESULT_WORDS)}`]; let text=random(templates)(); if(maybe(0.35)) text+=" — "+random(["good execution","tight stop","wide stop","no slippage","perfect timing"]); if(maybe(0.6)) text+=" "+random(EMOJIS); let tries=0; while(!mark(text)&&tries<60){ text+=" "+rand(999); tries++; } return { text, timestamp:generateTimestamp() };}
 
 /* =====================================================
 REALISTIC TYPING
 ===================================================== */
-async function realisticTyping(persona,text){for(let i=0;i<text.length;i++){const char=text[i];await new Promise(r=>setTimeout(r, rand(60,150)));if(char==='.'||char==='!'||char==='?') await new Promise(r=>setTimeout(r, rand(150,250)));} return true;}
+async function realisticTyping(persona,text){
+    for(let i=0;i<text.length;i++){
+        await new Promise(r=>setTimeout(r, rand(60,150)));
+        if(".!?".includes(text[i])) await new Promise(r=>setTimeout(r, rand(150,250)));
+    }
+    return true;
+}
 
 /* =====================================================
-JOINER GENERATION + STICKER
+JOINERS + STICKERS + THREADED REPLIES + REACTIONS
 ===================================================== */
-function generateJoiner(){const persona={name:"User"+rand(1000,9999)};const welcomeText=random(JOINER_WELCOMES).replace("{user}",persona.name); return {persona,text:welcomeText,timestamp:new Date(BASE_DATE),type:"joiner"};}
+function generateJoiner(){const persona={name:"User"+rand(1000,9999)}; const welcomeText=random(JOINER_WELCOMES).replace("{user}",persona.name); return {persona,text:welcomeText,timestamp:generateTimestamp(),type:"joiner"};}
 async function postJoinSticker(joinItem){window.TGRenderer.appendJoinSticker([joinItem.persona]); joinItem.id=`join_${Date.now()}_${rand(9999)}`;}
-
-/* =====================================================
-REACTIONS
-===================================================== */
+async function generateThreadedJoinerReplies(joinItem){const replyCount=rand(2,5); for(let i=0;i<replyCount;i++){const persona=window.identity.getRandomPersona(); const replyText=random(JOINER_REPLIES).replace("{user}",joinItem.persona.name); await realisticTyping(persona,replyText); const msgId=`realism_reply_${Date.now()}_${rand(9999)}`; window.TGRenderer.appendMessage(persona,replyText,{timestamp:new Date(),type:"incoming",id:msgId,parentId:joinItem.id}); if(maybe(0.2)) await simulateInlineReactions(msgId,rand(1,2)); await new Promise(r=>setTimeout(r,rand(400,1200)));}}
 async function simulateInlineReactions(messageId,count=1){for(let i=0;i<count;i++){const reaction=random(REACTIONS); window.TGRenderer?.appendReaction?.(messageId,reaction);await new Promise(r=>setTimeout(r,rand(150,800)));}}
-async function simulateReactions(message,count=1){for(let i=0;i<count;i++){const reaction=random(REACTIONS); window.TGRenderer?.appendReaction?.(message.id||`realism_${Date.now()}_${rand(9999)}`,reaction); await new Promise(r=>setTimeout(r,rand(200,1000)));}}
+async function simulateReactions(message,count=1){for(let i=0;i<count;i++){const reaction=random(REACTIONS); window.TGRenderer?.appendReaction?.(message.id||`realism_${Date.now()}_${rand(9999)}`,reaction);await new Promise(r=>setTimeout(r,rand(200,1000)));}}
 
 /* =====================================================
 POST MESSAGE
@@ -68,34 +71,63 @@ POST MESSAGE
 async function postMessage(item){if(!window.identity?.getRandomPersona||!window.TGRenderer?.appendMessage) return; const persona=item.persona||window.identity.getRandomPersona(); if(!persona) return; let text=item.type==="joiner"?item.text:(Math.random()<0.15?generateRoleMessage(persona):item.text); await realisticTyping(persona,text); const msgId=`realism_${item.type||"msg"}_${Date.now()}_${rand(9999)}`; window.TGRenderer.appendMessage(persona,text,{timestamp:item.timestamp||new Date(),type:item.type||"incoming",id:msgId}); item.id=msgId; if(maybe(0.2)) await simulateReactions({id:msgId},rand(1,2));}
 
 /* =====================================================
-THREAD REPLIES
-===================================================== */
-async function generateThreadedJoinerReplies(joinItem){const replyCount=rand(2,5);for(let i=0;i<replyCount;i++){const persona=window.identity.getRandomPersona(); const replyText=random(JOINER_REPLIES).replace("{user}",joinItem.persona.name); await realisticTyping(persona,replyText); const msgId=`realism_reply_${Date.now()}_${rand(9999)}`; window.TGRenderer.appendMessage(persona,replyText,{timestamp:new Date(),type:"incoming",id:msgId,parentId:joinItem.id}); if(maybe(0.2)) await simulateInlineReactions(msgId,rand(1,2)); await new Promise(r=>setTimeout(r,rand(400,1200));}}
-
-/* =====================================================
-CROWD SIMULATION
-===================================================== */
-async function simulateCrowd(count=120,minDelay=150,maxDelay=600){ensurePool(count); for(let i=0;i<count;i++){const item=POOL.shift(); if(!item) break; await postMessage(item); await new Promise(r=>setTimeout(r,minDelay+Math.random()*(maxDelay-minDelay)));}}
-
-/* =====================================================
-POOL MANAGEMENT
-===================================================== */
-function ensurePool(min=10000){while(POOL.length<min){POOL.push(generateComment()); if(POOL.length>50000) break;}}
-
-/* =====================================================
-JOINER SIMULATION
-===================================================== */
-async function simulateJoiner(minInterval=45000,maxInterval=120000){while(true){if(maybe(0.4)){const joinItem=generateJoiner(); await postJoinSticker(joinItem); await generateThreadedJoinerReplies(joinItem); await simulateReactions(joinItem,rand(1,2));} await new Promise(r=>setTimeout(r,rand(minInterval,maxInterval)));}}
-
-/* =====================================================
 HISTORICAL BACKFILL
 ===================================================== */
-async function injectHistorical(){const start=new Date(2025,7,14); const end=new Date(); let day=new Date(start); const total=[]; while(day<=end){const count=rand(10,25); for(let i=0;i<count;i++){const timestamp=new Date(day.getFullYear(),day.getMonth(),day.getDate(),rand(7,22),rand(0,59),rand(0,59)); const isJoiner=maybe(0.1)&&window.identity?.getRandomPersona; if(isJoiner){const joinItem={persona:window.identity.getRandomPersona(),text:`${window.identity.getRandomPersona().name} joined`,timestamp,type:"joiner"}; await postJoinSticker(joinItem); total.push(joinItem);} else{const msg={text:generateComment().text,persona:window.identity.getRandomPersona(),timestamp,type:"historic"}; await postMessage(msg); total.push(msg);} } day.setDate(day.getDate()+1);} console.log(`✅ Historical messages injected: ${total.length}`);}
+async function injectHistorical(){
+    const start = new Date(2025,7,14);
+    const end = new Date();
+    let day = new Date(start);
+    const total = [];
+    while(day <= end){
+        const count = rand(10,25);
+        for(let i=0;i<count;i++){
+            const timestamp = new Date(day.getFullYear(),day.getMonth(),day.getDate(),rand(7,22),rand(0,59),rand(0,59));
+            const isJoiner = maybe(0.1) && window.identity?.getRandomPersona;
+            if(isJoiner){
+                const joinItem={persona:window.identity.getRandomPersona(),text:`${window.identity.getRandomPersona().name} joined`,timestamp,type:"joiner"};
+                await postJoinSticker(joinItem);
+                await generateThreadedJoinerReplies(joinItem);
+                await simulateReactions(joinItem,rand(1,2));
+                total.push(joinItem);
+            } else {
+                const msg={text:generateComment().text,persona:window.identity.getRandomPersona(),timestamp,type:"historic"};
+                await postMessage(msg);
+                total.push(msg);
+            }
+        }
+        day.setDate(day.getDate()+1);
+    }
+    console.log(`✅ Historical messages injected: ${total.length}`);
+}
+
+/* =====================================================
+CROWD SIMULATION / LIVE
+===================================================== */
+async function simulateCrowd(count=120,minDelay=150,maxDelay=600){
+    ensurePool(count);
+    for(let i=0;i<count;i++){
+        const item=POOL.shift();
+        if(!item) break;
+        await postMessage(item);
+        await new Promise(r=>setTimeout(r,minDelay+Math.random()*(maxDelay-minDelay)));
+    }
+}
+function ensurePool(min=10000){
+    while(POOL.length<min){POOL.push(generateComment()); if(POOL.length>50000) break;}
+}
+async function simulateJoiner(minInterval=45000,maxInterval=120000){while(true){if(maybe(0.4)){const joinItem=generateJoiner(); await postJoinSticker(joinItem); await generateThreadedJoinerReplies(joinItem); await simulateReactions(joinItem,rand(1,2));} await new Promise(r=>setTimeout(r,rand(minInterval,maxInterval)));}}
 
 /* =====================================================
 INIT
 ===================================================== */
-async function init(){await waitForReady(); if(window.realism?.OLD_POOL) injectHistoricalPool(window.realism.OLD_POOL); ensurePool(10000); await injectHistorical(); simulateJoiner(45000,120000); simulateCrowd(120,150,600);}
+async function init(){
+    await waitForReady();
+    if(window.realism?.OLD_POOL) window.realism.injectHistoricalPool(window.realism.OLD_POOL);
+    ensurePool(10000);
+    await injectHistorical();
+    simulateJoiner(45000,120000);
+    simulateCrowd(120,150,600);
+}
 
 /* =====================================================
 WAIT FOR READY
@@ -119,4 +151,5 @@ window.realism.postJoinSticker=postJoinSticker;
 START
 ===================================================== */
 init();
+
 })();
