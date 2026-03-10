@@ -1,4 +1,4 @@
-// realism-engine-v28.2-full.js — Fully fixed realism engine v28.2
+// realism-engine-v28.3-full.js — Fully fixed realism engine
 (function(){
 "use strict";
 
@@ -14,7 +14,6 @@ const EMOJIS=["💸","🔥","💯","✨","😎","👀","📈","🚀","💰","�
 const REACTIONS=["👍","❤️","😂","😮","😢","👏","🔥","💯","😎","🎉"];
 const JOINER_WELCOMES=["Welcome {user}! 🎉 Glad to have you here!","Hey {user}, welcome to the chat! 👋","{user} joined! Make yourself at home ✨","Everyone say hi to {user}! 😎","{user} is here! Time for some action 💸","Cheers {user}, welcome aboard 🚀","Glad you joined, {user}! Let’s make some profits 💰","Hey {user}, feel free to ask questions 📝","{user} hopped in! Enjoy your stay 💎","Welcome {user}! Hope you enjoy the signals 🔥","{user} joined! Let's crush some trades together 📈","Say hello to {user}! 💯","{user} arrived! Time for green trades 💹","Welcome {user}, let's have a winning day 💎","Hey {user}, signals are ready! 🚀"];
 const JOINER_REPLIES=["Welcome aboard! 👍","Hey, great to see you here! 🎉","Let’s get some profits! 💰","Enjoy the signals! 🚀","You’ll love it here 😎","Make yourself at home ✨","Hi {user}, feel free to ask questions 📝","Glad you joined! 💎","Cheers! 🔥","Hello {user}, enjoy trading 💹","Hey {user}, stay green today! 💚","Welcome {user}! Watch the breakouts 💸","Hi {user}, signals are hot! 🔥","{user} is in! Let’s make it a winning week 💯"];
-const ROLES={ADMIN:["New signal dropping soon","Hold entries until confirmation","Market volatility is high today","Signal confirmed — manage risk","VIP signal posted above","Attention: news impact incoming","Adjust stop loss for current trades"],SIGNAL:["Signal: {asset} {tf} — CALL","Signal: {asset} {tf} — PUT","Watching {asset} breakout","Entry forming on {asset} {tf}","Possible reversal on {asset}","Target hit on {asset} {tf}","Missed entry on {asset} {tf}"],PRO:["Took that trade — looks good","Confirmed on my chart","Entry was clean","Nice signal","That move was strong","Managed risk perfectly","Closed with profit"],BEGINNER:["Is it safe to enter now?","New here how do I follow signals?","Anyone trading this?","Still learning this strategy","Can someone explain the entry?","Missed the entry, help!","How do I calculate risk?"],HYPE:["🔥🔥🔥","Nice profit today","Another win","Abrox never disappoints","Green again today 💰","Profit stacking 💎","Excellent week 🚀","Feeling lucky today"]};
 
 /* =====================================================
 UTILS
@@ -41,37 +40,34 @@ function mark(text){const fp=hash(text.toLowerCase()); if(GENERATED.has(fp)) ret
 /* =====================================================
 COMMENT GENERATOR
 ===================================================== */
-const BASE_DATE = new Date(2025,7,14,10,0,0);
-function generateTimestamp(daysBack=120){return new Date(BASE_DATE.getTime()-Math.random()*daysBack*86400000);}
-function generateComment(){let templates=[()=>`Guys, ${random(TESTIMONIALS)}`,()=>`Anyone trading ${random(ASSETS)} on ${random(BROKERS)}?`,()=>`Signal for ${random(ASSETS)} ${random(TIMEFRAMES)} is ${random(RESULT_WORDS)}`,()=>`Closed ${random(ASSETS)} on ${random(TIMEFRAMES)} — ${random(RESULT_WORDS)}`,()=>`Scalped ${random(ASSETS)} on ${random(BROKERS)}, result ${random(RESULT_WORDS)}`]; let text=random(templates)(); if(maybe(0.35)) text+=" — "+random(["good execution","tight stop","wide stop","no slippage","perfect timing"]); if(maybe(0.6)) text+=" "+random(EMOJIS); let tries=0; while(!mark(text)&&tries<60){ text+=" "+rand(999); tries++; } return { text, timestamp:generateTimestamp() };}
+function generateComment(){let templates=[()=>`Guys, ${random(TESTIMONIALS)}`,()=>`Anyone trading ${random(ASSETS)} on ${random(BROKERS)}?`,()=>`Signal for ${random(ASSETS)} ${random(TIMEFRAMES)} is ${random(RESULT_WORDS)}`,()=>`Closed ${random(ASSETS)} on ${random(TIMEFRAMES)} — ${random(RESULT_WORDS)}`,()=>`Scalped ${random(ASSETS)} on ${random(BROKERS)}, result ${random(RESULT_WORDS)}`]; let text=random(templates)(); if(maybe(0.35)) text+=" — "+random(["good execution","tight stop","wide stop","no slippage","perfect timing"]); if(maybe(0.6)) text+=" "+random(EMOJIS); let tries=0; while(!mark(text)&&tries<60){ text+=" "+rand(999); tries++; } return { text, timestamp:new Date() } }
 
 /* =====================================================
 REALISTIC TYPING
 ===================================================== */
 async function realisticTyping(persona,text){
+    if(!window.queuedTyping) window.queuedTyping={};
+    const id=`typing_${persona.name}_${Date.now()}`;
+    window.queuedTyping[id]=persona.name;
     for(let i=0;i<text.length;i++){
         await new Promise(r=>setTimeout(r, rand(60,150)));
         if(".!?".includes(text[i])) await new Promise(r=>setTimeout(r, rand(150,250)));
     }
+    delete window.queuedTyping[id];
     return true;
 }
 
 /* =====================================================
-JOINERS + STICKERS + THREADED REPLIES + REACTIONS
+JOINERS + STICKERS + THREADS + REACTIONS
 ===================================================== */
-function generateJoiner(){const persona={name:"User"+rand(1000,9999)}; const welcomeText=random(JOINER_WELCOMES).replace("{user}",persona.name); return {persona,text:welcomeText,timestamp:generateTimestamp(),type:"joiner"};}
+function generateJoiner(){const persona={name:"User"+rand(1000,9999)}; const welcomeText=random(JOINER_WELCOMES).replace("{user}",persona.name); return {persona,text:welcomeText,timestamp:new Date(),type:"joiner"};}
 async function postJoinSticker(joinItem){window.TGRenderer.appendJoinSticker([joinItem.persona]); joinItem.id=`join_${Date.now()}_${rand(9999)}`;}
 async function generateThreadedJoinerReplies(joinItem){const replyCount=rand(2,5); for(let i=0;i<replyCount;i++){const persona=window.identity.getRandomPersona(); const replyText=random(JOINER_REPLIES).replace("{user}",joinItem.persona.name); await realisticTyping(persona,replyText); const msgId=`realism_reply_${Date.now()}_${rand(9999)}`; window.TGRenderer.appendMessage(persona,replyText,{timestamp:new Date(),type:"incoming",id:msgId,parentId:joinItem.id}); if(maybe(0.2)) await simulateInlineReactions(msgId,rand(1,2)); await new Promise(r=>setTimeout(r,rand(400,1200)));}}
 async function simulateInlineReactions(messageId,count=1){for(let i=0;i<count;i++){const reaction=random(REACTIONS); window.TGRenderer?.appendReaction?.(messageId,reaction);await new Promise(r=>setTimeout(r,rand(150,800)));}}
 async function simulateReactions(message,count=1){for(let i=0;i<count;i++){const reaction=random(REACTIONS); window.TGRenderer?.appendReaction?.(message.id||`realism_${Date.now()}_${rand(9999)}`,reaction);await new Promise(r=>setTimeout(r,rand(200,1000)));}}
 
 /* =====================================================
-POST MESSAGE
-===================================================== */
-async function postMessage(item){if(!window.identity?.getRandomPersona||!window.TGRenderer?.appendMessage) return; const persona=item.persona||window.identity.getRandomPersona(); if(!persona) return; let text=item.type==="joiner"?item.text:(Math.random()<0.15?generateRoleMessage(persona):item.text); await realisticTyping(persona,text); const msgId=`realism_${item.type||"msg"}_${Date.now()}_${rand(9999)}`; window.TGRenderer.appendMessage(persona,text,{timestamp:item.timestamp||new Date(),type:item.type||"incoming",id:msgId}); item.id=msgId; if(maybe(0.2)) await simulateReactions({id:msgId},rand(1,2));}
-
-/* =====================================================
-HISTORICAL BACKFILL
+HISTORICAL BACKFILL — FULL FIX
 ===================================================== */
 async function injectHistorical(){
     const start = new Date(2025,7,14);
@@ -79,7 +75,7 @@ async function injectHistorical(){
     let day = new Date(start);
     const total = [];
     while(day <= end){
-        const count = rand(10,25);
+        const count = rand(15,30);
         for(let i=0;i<count;i++){
             const timestamp = new Date(day.getFullYear(),day.getMonth(),day.getDate(),rand(7,22),rand(0,59),rand(0,59));
             const isJoiner = maybe(0.1) && window.identity?.getRandomPersona;
@@ -101,7 +97,7 @@ async function injectHistorical(){
 }
 
 /* =====================================================
-CROWD SIMULATION / LIVE
+LIVE SIMULATION
 ===================================================== */
 async function simulateCrowd(count=120,minDelay=150,maxDelay=600){
     ensurePool(count);
@@ -116,6 +112,21 @@ function ensurePool(min=10000){
     while(POOL.length<min){POOL.push(generateComment()); if(POOL.length>50000) break;}
 }
 async function simulateJoiner(minInterval=45000,maxInterval=120000){while(true){if(maybe(0.4)){const joinItem=generateJoiner(); await postJoinSticker(joinItem); await generateThreadedJoinerReplies(joinItem); await simulateReactions(joinItem,rand(1,2));} await new Promise(r=>setTimeout(r,rand(minInterval,maxInterval)));}}
+
+/* =====================================================
+POST MESSAGE
+===================================================== */
+async function postMessage(item){
+    if(!window.identity?.getRandomPersona || !window.TGRenderer?.appendMessage) return;
+    const persona=item.persona||window.identity.getRandomPersona();
+    if(!persona) return;
+    const text=item.type==="joiner"?item.text:(Math.random()<0.15?generateRoleMessage(persona):item.text);
+    await realisticTyping(persona,text);
+    const msgId=`realism_${item.type||"msg"}_${Date.now()}_${rand(9999)}`;
+    window.TGRenderer.appendMessage(persona,text,{timestamp:item.timestamp||new Date(),type:item.type||"incoming",id:msgId});
+    item.id=msgId;
+    if(maybe(0.2)) await simulateReactions({id:msgId},rand(1,2));
+}
 
 /* =====================================================
 INIT
@@ -148,8 +159,7 @@ window.realism.injectHistoricalPool=injectHistoricalPool;
 window.realism.postJoinSticker=postJoinSticker;
 
 /* =====================================================
-START
+START ENGINE
 ===================================================== */
 init();
-
 })();
