@@ -1,4 +1,4 @@
-// realism-engine-v25-historical-merge.js — Full realism + historical backfill + joiners + reactions + threaded replies
+// realism-engine-v25-fixed.js — Full realism + historical backfill + joiners + reactions + threaded replies + fixes
 (function(){
 "use strict";
 
@@ -134,10 +134,8 @@ POOL.push(item);
 
 /* =====================================================
 COMMENT GENERATOR
-ALL TIMESTAMPS START AUGUST 14, 2025
 ===================================================== */
-const BASE_DATE = new Date(2025,7,14,10,0,0); // August 14, 2025
-
+const BASE_DATE = new Date(2025,7,14,10,0,0);
 function generateTimestamp(daysBack=120){
 const offset = Math.random()*daysBack*86400000;
 return new Date(BASE_DATE.getTime() - offset);
@@ -167,30 +165,39 @@ const welcomeText=random(JOINER_WELCOMES).replace("{user}",persona.name);
 return { persona, text: welcomeText, timestamp:new Date(BASE_DATE), type:"joiner" };
 }
 
-async function simulateJoiner(minInterval=30000,maxInterval=120000){
+/* =====================================================
+SIMULATE JOINER WITH FIXES
+===================================================== */
+async function simulateJoiner(minInterval=45000,maxInterval=120000){
 while(true){
+if(maybe(0.4)) { // low chance to not spam joiners
 const joinItem=generateJoiner();
-await postMessage(joinItem);
-await simulateReactions(joinItem,rand(1,3));
+await postJoinSticker(joinItem);
 await generateThreadedJoinerReplies(joinItem);
+await simulateReactions(joinItem,rand(1,2));
+}
 await new Promise(r=>setTimeout(r,rand(minInterval,maxInterval)));
 }
 }
 
+/* =====================================================
+THREAD REPLIES
+===================================================== */
 async function generateThreadedJoinerReplies(joinItem){
 const replyCount=rand(2,5);
 for(let i=0;i<replyCount;i++){
 const persona=window.identity.getRandomPersona();
 const replyText=random(JOINER_REPLIES).replace("{user}",joinItem.persona.name);
-await window.queuedTyping(persona,replyText);
+// realistic typing per char
+await window.queuedTyping(persona,replyText, {speed:rand(30,75)});
 const msgId=`realism_reply_${Date.now()}_${rand(9999)}`;
 window.TGRenderer.appendMessage(persona,replyText,{
-timestamp:new Date(BASE_DATE),
+timestamp:new Date(), // current date for live replies
 type:"incoming",
 id:msgId,
 parentId: joinItem.id
 });
-if(maybe(0.5)) await simulateInlineReactions(msgId, rand(1,3));
+if(maybe(0.2)) await simulateInlineReactions(msgId, rand(1,2));
 await new Promise(r=>setTimeout(r,rand(400,1200)));
 }
 }
@@ -215,22 +222,30 @@ await new Promise(r=>setTimeout(r,rand(200,1000)));
 }
 
 /* =====================================================
-POST MESSAGE
+POST MESSAGE WITH FIXES
 ===================================================== */
 async function postMessage(item){
 if(!window.identity?.getRandomPersona || !window.TGRenderer?.appendMessage) return;
 const persona=item.persona||window.identity.getRandomPersona();
 if(!persona) return;
-let text=item.type==="joiner"?item.text:(Math.random()<0.45 ? generateRoleMessage(persona) : item.text);
-await window.queuedTyping(persona,text);
+let text=item.type==="joiner"?item.text:(Math.random()<0.15 ? generateRoleMessage(persona) : item.text);
+await window.queuedTyping(persona,text,{speed:rand(25,70)});
 const msgId=`realism_${item.type||"msg"}_${Date.now()}_${rand(9999)}`;
 window.TGRenderer.appendMessage(persona,text,{
-timestamp:item.timestamp||new Date(BASE_DATE),
+timestamp:item.timestamp||new Date(),
 type:item.type||"incoming",
 id:msgId
 });
 item.id = msgId;
-if(maybe(0.3)) await simulateReactions({id: msgId}, rand(1,3));
+if(maybe(0.2)) await simulateReactions({id: msgId}, rand(1,2));
+}
+
+/* =====================================================
+JOIN STICKER FIX
+===================================================== */
+async function postJoinSticker(joinItem){
+window.TGRenderer.appendJoinSticker([joinItem.persona]);
+joinItem.id=`join_${Date.now()}_${rand(9999)}`;
 }
 
 /* =====================================================
@@ -276,7 +291,6 @@ schedule();
 
 async function init(){
 await waitForReady();
-// Inject old historical pool from v22/v20 here
 if(window.realism?.OLD_POOL) injectHistoricalPool(window.realism.OLD_POOL);
 ensurePool(10000);
 simulateJoiner(45000,120000);
@@ -303,6 +317,7 @@ window.realism.simulateReactions=simulateReactions;
 window.realism.generateThreadedJoinerReplies=generateThreadedJoinerReplies;
 window.realism.simulateInlineReactions=simulateInlineReactions;
 window.realism.injectHistoricalPool=injectHistoricalPool;
+window.realism.postJoinSticker=postJoinSticker;
 
 init();
 })();
