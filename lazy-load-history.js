@@ -32,7 +32,6 @@ function activity(){
     return rand(150,220); 
 }
 
-// --- Generate historical timeline
 function generateTimeline(total){
     const items=[];
     let day = new Date(START_DATE);
@@ -70,7 +69,6 @@ function generateTimeline(total){
     return items.sort((a,b)=>a.timestamp-b.timestamp);
 }
 
-// --- GUARANTEED REALISM MESSAGE
 function getRealismMessage(){
 
     window.realism.POOL = window.realism.POOL || [];
@@ -95,7 +93,6 @@ function getRealismMessage(){
     return msg.text || msg.message || msg;
 }
 
-// --- Post historic messages
 let headerInserted = false;
 let firstHistoricMsgId = null;
 
@@ -106,15 +103,11 @@ async function postHistoric(item){
     let text;
 
     if(item.type === "join"){
-
         text = `${persona.name} joined the group`;
-
     }else{
-
         while(!text){
             text = getRealismMessage();
         }
-
     }
 
     window.realism.HISTORIC_POOL = window.realism.HISTORIC_POOL || [];
@@ -164,7 +157,6 @@ async function postHistoric(item){
 
 }
 
-// --- Load history in chunks
 async function loadHistoryInChunks(){
 
     const timeline = generateTimeline(TOTAL_HISTORICAL);
@@ -194,7 +186,45 @@ async function loadHistoryInChunks(){
 
 }
 
-// --- LIVE MESSAGE (REALISTIC TYPING)
+/* ---------------------------------------------------
+REALISTIC LIVE CHAT + CONVERSATION BURSTS
+--------------------------------------------------- */
+
+async function simulateConversationBurst(basePersona){
+
+    const replies = rand(2,4);
+
+    for(let i=0;i<replies;i++){
+
+        const convo = window.realism.generateConversation?.();
+
+        if(!convo) continue;
+
+        const text = convo.text || "";
+
+        const thinkingDelay = rand(2000,5000);
+        const typingDuration = Math.min(text.length * rand(140,220), 9000);
+
+        await new Promise(r=>setTimeout(r,thinkingDelay));
+
+        await window.queuedTyping(convo.persona,text);
+
+        await new Promise(r=>setTimeout(r,typingDuration));
+
+        window.TGRenderer.appendMessage(
+            convo.persona,
+            text,
+            {
+                timestamp:new Date(),
+                type:"incoming",
+                bubblePreview:true
+            }
+        );
+
+    }
+
+}
+
 async function postLive(){
 
     const convo = window.realism.generateConversation?.() || {
@@ -205,22 +235,14 @@ async function postLive(){
     const text = convo.text || "";
     const now = new Date();
 
-    const thinkingDelay = rand(800,2500);
+    const thinkingDelay = rand(2500,6000);
+    const typingDuration = Math.min(text.length * rand(160,260), 12000);
 
-    const chars = text.length;
-    const msPerChar = rand(90,160);
-    const typingDuration = chars * msPerChar;
+    await new Promise(r=>setTimeout(r,thinkingDelay));
 
-    const sendPause = rand(400,1200);
+    await window.queuedTyping(convo.persona,text);
 
-    const totalTypingTime = Math.min(
-        thinkingDelay + typingDuration + sendPause,
-        10000
-    );
-
-    await window.queuedTyping(convo.persona, text);
-
-    await new Promise(r=>setTimeout(r, totalTypingTime));
+    await new Promise(r=>setTimeout(r,typingDuration));
 
     const scrollAtBottom =
         container.scrollTop + container.clientHeight
@@ -250,9 +272,14 @@ async function postLive(){
         showJump();
     }
 
+    /* chance to trigger conversation cluster */
+
+    if(Math.random() < 0.35){
+        simulateConversationBurst(convo.persona);
+    }
+
 }
 
-// --- Ensure live pool
 function ensureLivePool(min=10000){
 
     window.realism.POOL = window.realism.POOL || [];
@@ -271,7 +298,6 @@ function ensureLivePool(min=10000){
 
 }
 
-// --- Crowd burst
 async function simulateCrowdBurst(total=150){
 
     ensureLivePool(total);
@@ -286,13 +312,12 @@ async function simulateCrowdBurst(total=150){
             burst.map(item=>window.realism.postMessage(item))
         );
 
-        await new Promise(r=>setTimeout(r, rand(100,500)));
+        await new Promise(r=>setTimeout(r, rand(200,700)));
 
     }
 
 }
 
-// --- Init
 async function init(){
 
     while(
@@ -314,13 +339,13 @@ async function init(){
 
     simulateCrowdBurst(200);
 
-    setInterval(postLive, rand(12000,40000));
+    setInterval(postLive, rand(15000,45000));
 
     window.realism.simulate();
 
     window.realism.simulateJoiner(45000,120000);
 
-    console.log("✅ Fully synced: historical first + header + scroll-to-start + live now + full realism pool + threaded replies");
+    console.log("✅ Fully synced: historical + live + realistic typing + conversation bursts");
 
 }
 
