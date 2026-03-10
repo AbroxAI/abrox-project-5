@@ -1,13 +1,10 @@
-// realism-sync-loader-v1.js — Full sync loader for realism engine v28.2
+// realism-sync-loader-v2.js — Fully fixed sync loader for realism engine v28.3
 (function(){
 "use strict";
 
 /* =====================================================
-SYNC LOADER
-Ensures historical data + pool + joiners are fully loaded
-before starting live simulation
+WAIT FOR REALISM ENGINE READY
 ===================================================== */
-
 async function waitForRealismReady(timeout=45000){
     let waited = 0;
     while((!window.realism || !window.identity?.getRandomPersona || !window.TGRenderer?.appendMessage) && waited < timeout){
@@ -17,13 +14,19 @@ async function waitForRealismReady(timeout=45000){
     return !!window.realism && !!window.identity?.getRandomPersona && !!window.TGRenderer?.appendMessage;
 }
 
+/* =====================================================
+PRELOAD HISTORICAL MESSAGES
+===================================================== */
 async function preloadHistoricalMessages(){
-    if(!window.realism || !window.realism.injectHistoricalPool) return;
-    console.log("⏳ Injecting historical messages...");
+    if(!window.realism || !window.realism.injectHistorical) return;
+    console.log("⏳ Injecting historical messages from Aug 14 → yesterday...");
     await window.realism.injectHistorical();
     console.log("✅ Historical messages injected!");
 }
 
+/* =====================================================
+PRELOAD MESSAGE POOL
+===================================================== */
 async function preloadPool(min=10000){
     if(!window.realism) return;
     console.log(`⏳ Ensuring message pool has at least ${min} items...`);
@@ -32,6 +35,9 @@ async function preloadPool(min=10000){
     console.log(`✅ Message pool ready: ${window.realism.POOL.length} items`);
 }
 
+/* =====================================================
+START LIVE SIMULATION
+===================================================== */
 async function startSimulation(){
     console.log("🚀 Starting live realism engine simulation...");
     if(window.realism.simulateJoiner) window.realism.simulateJoiner(45000,120000);
@@ -42,6 +48,7 @@ async function startSimulation(){
 MAIN SYNC FUNCTION
 ===================================================== */
 async function syncLoader(){
+    console.log("⏳ Waiting for realism engine to be ready...");
     const ready = await waitForRealismReady();
     if(!ready){
         console.error("❌ Realism engine did not become ready in time!");
@@ -56,7 +63,7 @@ async function syncLoader(){
 }
 
 /* =====================================================
-START LOADER
+START SYNC LOADER
 ===================================================== */
 syncLoader();
 
