@@ -1,4 +1,4 @@
-// realism-engine-v25-fixed.js — Full realism + historical backfill + joiners + reactions + threaded replies + fixes
+// realism-engine-v26-full-fixed.js — Full realism + historical backfill + joiners + reactions + threaded replies + fixes + realistic typing
 (function(){
 "use strict";
 
@@ -157,12 +157,24 @@ return { text, timestamp: generateTimestamp() };
 }
 
 /* =====================================================
-JOINER + REPLIES + INLINE REACTIONS
+JOINER + REPLIES + INLINE REACTIONS + STICKER
 ===================================================== */
 function generateJoiner(){
 const persona={ name:"User"+rand(1000,9999) };
 const welcomeText=random(JOINER_WELCOMES).replace("{user}",persona.name);
 return { persona, text: welcomeText, timestamp:new Date(BASE_DATE), type:"joiner" };
+}
+
+/* =====================================================
+REALISTIC TYPING
+===================================================== */
+async function realisticTyping(persona,text){
+for(let i=0;i<text.length;i++){
+    const char = text[i];
+    await new Promise(r=>setTimeout(r, rand(60,150)));
+    if(char==='.'||char==='!'||char==='?') await new Promise(r=>setTimeout(r, rand(150,250)));
+}
+return true;
 }
 
 /* =====================================================
@@ -188,11 +200,10 @@ const replyCount=rand(2,5);
 for(let i=0;i<replyCount;i++){
 const persona=window.identity.getRandomPersona();
 const replyText=random(JOINER_REPLIES).replace("{user}",joinItem.persona.name);
-// realistic typing per char
-await window.queuedTyping(persona,replyText, {speed:rand(30,75)});
+await realisticTyping(persona,replyText);
 const msgId=`realism_reply_${Date.now()}_${rand(9999)}`;
 window.TGRenderer.appendMessage(persona,replyText,{
-timestamp:new Date(), // current date for live replies
+timestamp:new Date(),
 type:"incoming",
 id:msgId,
 parentId: joinItem.id
@@ -222,14 +233,14 @@ await new Promise(r=>setTimeout(r,rand(200,1000)));
 }
 
 /* =====================================================
-POST MESSAGE WITH FIXES
+POST MESSAGE
 ===================================================== */
 async function postMessage(item){
 if(!window.identity?.getRandomPersona || !window.TGRenderer?.appendMessage) return;
 const persona=item.persona||window.identity.getRandomPersona();
 if(!persona) return;
 let text=item.type==="joiner"?item.text:(Math.random()<0.15 ? generateRoleMessage(persona) : item.text);
-await window.queuedTyping(persona,text,{speed:rand(25,70)});
+await realisticTyping(persona,text);
 const msgId=`realism_${item.type||"msg"}_${Date.now()}_${rand(9999)}`;
 window.TGRenderer.appendMessage(persona,text,{
 timestamp:item.timestamp||new Date(),
@@ -241,7 +252,7 @@ if(maybe(0.2)) await simulateReactions({id: msgId}, rand(1,2));
 }
 
 /* =====================================================
-JOIN STICKER FIX
+JOIN STICKER
 ===================================================== */
 async function postJoinSticker(joinItem){
 window.TGRenderer.appendJoinSticker([joinItem.persona]);
