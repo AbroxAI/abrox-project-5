@@ -1,25 +1,34 @@
-// realism-sync-loader-v2.js — Fully fixed sync loader for realism engine v28.3
+// realism-sync-loader-v1.1.js — Full sync loader for realism engine v28.3
 (function(){
 "use strict";
 
 /* =====================================================
 WAIT FOR REALISM ENGINE READY
 ===================================================== */
-async function waitForRealismReady(timeout=45000){
+async function waitForRealismReady(timeout=60000){
     let waited = 0;
-    while((!window.realism || !window.identity?.getRandomPersona || !window.TGRenderer?.appendMessage) && waited < timeout){
+    while((!window.realism 
+           || !window.identity?.getRandomPersona 
+           || !window.TGRenderer?.appendMessage 
+           || !window.queuedTyping?.start 
+           || !window.queuedTyping?.stop) 
+          && waited < timeout){
         await new Promise(r => setTimeout(r, 50));
         waited += 50;
     }
-    return !!window.realism && !!window.identity?.getRandomPersona && !!window.TGRenderer?.appendMessage;
+    return !!window.realism 
+        && !!window.identity?.getRandomPersona 
+        && !!window.TGRenderer?.appendMessage 
+        && !!window.queuedTyping?.start 
+        && !!window.queuedTyping?.stop;
 }
 
 /* =====================================================
 PRELOAD HISTORICAL MESSAGES
 ===================================================== */
 async function preloadHistoricalMessages(){
-    if(!window.realism || !window.realism.injectHistorical) return;
-    console.log("⏳ Injecting historical messages from Aug 14 → yesterday...");
+    if(!window.realism?.injectHistorical) return;
+    console.log("⏳ Injecting historical messages from August 14 till yesterday...");
     await window.realism.injectHistorical();
     console.log("✅ Historical messages injected!");
 }
@@ -30,7 +39,9 @@ PRELOAD MESSAGE POOL
 async function preloadPool(min=10000){
     if(!window.realism) return;
     console.log(`⏳ Ensuring message pool has at least ${min} items...`);
-    window.realism.POOL.length = 0; // clear old pool
+    // Clear old pool
+    window.realism.POOL.length = 0;
+    // Fill new pool
     if(window.realism.ensurePool) window.realism.ensurePool(min);
     console.log(`✅ Message pool ready: ${window.realism.POOL.length} items`);
 }
@@ -48,7 +59,6 @@ async function startSimulation(){
 MAIN SYNC FUNCTION
 ===================================================== */
 async function syncLoader(){
-    console.log("⏳ Waiting for realism engine to be ready...");
     const ready = await waitForRealismReady();
     if(!ready){
         console.error("❌ Realism engine did not become ready in time!");
@@ -59,11 +69,11 @@ async function syncLoader(){
     await preloadPool(10000);
     await startSimulation();
 
-    console.log("✅ Realism engine fully loaded and running!");
+    console.log("✅ Realism engine fully loaded and running with historical + live chat!");
 }
 
 /* =====================================================
-START SYNC LOADER
+START LOADER
 ===================================================== */
 syncLoader();
 
