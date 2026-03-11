@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">  
+<head>  
+  <meta charset="utf-8" />  
+  <meta name="viewport" content="width=device-width,initial-scale=1" />  
+  <title>Abrox – Profit Hunters Chat</title>    
+
+  <!-- Telegram 2026 CSS -->
+  <link rel="stylesheet" href="widget-fixed.css" />    
+
+  <!-- Global Config -->
+  <script>  
+    window.CONTACT_ADMIN_LINK = "https://t.me/ph_suppp";  
+    window.MEMBER_COUNT = 1284;  
+    window.ONLINE_COUNT = 128;  
+
+    window.REALISM_CONFIG = {  
+      TOTAL_PERSONAS: 1200,  
+      INITIAL_POOL: 400,  
+      POOL_MIN: 300,  
+      POOL_MAX: 3000,  
+      DEDUP_LIMIT: 200000,  
+      MIN_INTERVAL_MS: 20000,  
+      MAX_INTERVAL_MS: 60000,  
+      REACTION_TICK_MS: 30000,  
+      TREND_SPIKE_PROB: 0.02  
+    };  
+  </script>  
+</head>  
+
+<body>    
+  <div id="tg-comments-app">  
+
+    <!-- HEADER -->
+    <header class="tg-header" role="banner">  
+      <button id="tg-back" class="tg-back-btn" aria-label="Back">  
+        <i data-lucide="arrow-left"></i>  
+      </button>  
+      <div class="tg-header-center">  
+        <img src="assets/logo.jpg" alt="Logo" class="tg-header-avatar" />  
+        <div class="tg-header-info">  
+          <div class="tg-title">🌐 Profit Hunters Chat</div>  
+          <div class="tg-meta" id="tg-meta-line">1,284 members, 128 online</div>  
+        </div>  
+      </div>  
+      <button id="tg-options" class="tg-options-btn" aria-label="Options">  
+        <i data-lucide="more-vertical"></i>  
+      </button>  
+    </header>  
+
+    <!-- PIN BANNER -->
+    <div id="tg-pin-banner" class="tg-pin-banner hidden" role="region" aria-live="polite"></div>  
+
+    <!-- COMMENTS FEED -->
+    <main id="tg-comments-container" class="tg-comments-container" role="feed" aria-live="off"></main>  
+
+    <!-- TYPING PREVIEW -->
+    <div id="tg-typing-preview" class="tg-typing-preview"></div>
+
+    <!-- NEW MESSAGE JUMP PILL -->
+    <div id="tg-jump-indicator" class="hidden" aria-hidden="true">  
+      <i data-lucide="chevron-down"></i>  
+      <span id="tg-jump-text">New messages</span>  
+    </div>  
+
+    <!-- INPUT BAR -->
+    <div class="tg-input-wrapper" role="form" aria-label="Send a message">  
+      <div class="tg-input-bar glass locked" id="tg-input-bar">  
+        <i data-lucide="lock" class="tg-input-lock"></i>  
+        <span class="tg-input-locked-text">Only verified members can send messages</span>  
+      </div>  
+    </div>
+
+  </div>    
+
+  <!-- ICONS -->
+  <script src="https://unpkg.com/lucide@latest"></script>    
+
+  <!-- CORE SCRIPTS -->
+  <script src="identity-personas-v7-fixed.js"></script>    
+  <script src="bubble-renderer-fixed-v2.js"></script>    
+  <script src="realism-engine-v32-dynamic-edits.js"></script>    
+  <script src="app.js"></script>    
+  <script src="interactions-enhanced.js"></script>    
+
+  <!-- INITIALIZATION -->
+  <script>  
+    if(window.lucide?.createIcons){ window.lucide.createIcons(); }  
+
+    (async function initAllSystems(){  
+      async function waitForReady() {  
+        while(!(  
+          window.identity?.SyntheticPool?.length &&  
+          window.TGRenderer?.appendMessage &&  
+          window.queuedTyping &&  
+          window.realismEngineV32?.postMessage  
+        )) await new Promise(r=>setTimeout(r,50));  
+      }  
+      await waitForReady();  
+
+      const container = document.getElementById("tg-comments-container");  
+
+      // -------------------------
+      // START REALISM ENGINE v32
+      // -------------------------
+      if(!window.realismEngineV32.started){  
+        window.realismEngineV32.injectHistorical = async function(){
+          let current = new Date("2025-08-14T09:00:00");
+          const end = new Date();
+          await window.realismEngineV32.refillPool();
+          while(current < end){
+            const msg = await window.realismEngineV32.generateComment(current);
+            await window.realismEngineV32.postMessage(msg);
+            current.setMinutes(current.getMinutes()+Math.floor(Math.random()*11+5));
+          }
+          container.scrollTop = container.scrollHeight;
+        };
+        await window.realismEngineV32.injectHistorical();
+
+        // Initial joiners with threaded replies
+        for(let i=0;i<3;i++){
+          const joinItem = window.realismEngineV32.generateJoiner();
+          await window.realismEngineV32.postJoinSticker(joinItem);
+          await window.realismEngineV32.generateThreadedJoinerReplies(joinItem);
+        }
+
+        // Live comment loop
+        (async function liveLoop(){
+          while(true){
+            const comment = await window.realismEngineV32.generateComment();
+            await window.realismEngineV32.postMessage(comment);
+            if(Math.random()<0.3) window.realismEngineV32.addReaction(comment, window.realismEngineV32.REACTIONS?.[Math.floor(Math.random()*window.realismEngineV32.REACTIONS.length)]);
+            await new Promise(r=>setTimeout(r, Math.floor(Math.random()*2000+1000)));
+          }
+        })();
+
+        // Joiner loop
+        (async function joinerLoop(){
+          while(true){
+            const joinItem = window.realismEngineV32.generateJoiner();
+            await window.realismEngineV32.postJoinSticker(joinItem);
+            await window.realismEngineV32.generateThreadedJoinerReplies(joinItem);
+            await new Promise(r=>setTimeout(r, Math.floor(Math.random()*30000+15000)));
+          }
+        })();
+
+        // -------------------------
+        // MULTI-STEP TYPING PREVIEW
+        // -------------------------
+        const typingPreviews = {};
+        document.addEventListener("headerTyping", e => {
+          const previewContainer = document.getElementById("tg-typing-preview");
+          const names = e.detail.name.split(", ");
+          for (const persona in typingPreviews) if (!names.includes(persona)) delete typingPreviews[persona];
+          names.forEach(persona => { if (!typingPreviews[persona]) typingPreviews[persona] = ""; });
+          previewContainer.textContent = Object.entries(typingPreviews)
+            .map(([p,text])=>`${p}: ${text}`)
+            .join(" | ");
+        });
+
+        window.updateTypingPreview = function(personaName, fullText) {
+          const words = fullText.split(" "); let idx = 0;
+          const interval = setInterval(() => {
+            if (!window.realismEngineV32.started) { clearInterval(interval); return; }
+            typingPreviews[personaName] = words.slice(0, idx + 1).join(" ");
+            const previewContainer = document.getElementById("tg-typing-preview");
+            previewContainer.textContent = Object.entries(typingPreviews)
+              .map(([p, text]) => `${p}: ${text}`)
+              .join(" | ");
+            idx++;
+            if (idx >= words.length) {
+              clearInterval(interval);
+              setTimeout(()=>{
+                delete typingPreviews[personaName];
+                previewContainer.textContent = Object.entries(typingPreviews)
+                  .map(([p, text]) => `${p}: ${text}`)
+                  .join(" | ");
+              }, 500);
+            }
+          }, 150 + Math.random()*100);
+        };
+
+        window.realismEngineV32.started = true;
+      }  
+
+      // Post pinned admin broadcast
+      if(window.realismEngineV32.postAdminBroadcast){  
+        const broadcast = await window.realismEngineV32.postAdminBroadcast();  
+        window.realismEngineV32.postPinNotice?.();  
+        window.realismEngineV32.showPinBanner?.(broadcast.image, broadcast.id);  
+        requestAnimationFrame(()=>container.scrollTop = container.scrollHeight);  
+      }  
+
+      window.interactions.ready = true;  
+      console.log("✅ All systems initialized: Identity, Realism Engine v32, Reactions, Threaded Replies, Pin Banner, Multi-step Typing Preview.");  
+    })();  
+  </script>  
+
+  <style>
+    .tg-typing-preview {
+      font-style: italic;
+      color: #888;
+      padding: 5px 10px;
+      min-height: 20px;
+    }
+  </style>
+
+</body>  
+</html>
