@@ -78,7 +78,6 @@
     if(window.lucide?.createIcons){ window.lucide.createIcons(); }  
 
     (async function initAllSystems(){  
-      // wait for all core systems  
       async function waitForReady() {  
         while(!(  
           window.identity?.SyntheticPool?.length &&  
@@ -95,10 +94,21 @@
       // START REALISM ENGINE v32
       // -------------------------
       if(!window.realismEngineV32.started){  
-        // Inject historical messages
-        await window.realismEngineV32.injectHistorical?.();  
+        // Inject historical messages from Aug 14, 2025
+        window.realismEngineV32.injectHistorical = async function(){
+          let current = new Date("2025-08-14T09:00:00");
+          const end = new Date();
+          await window.realismEngineV32.refillPool();
+          while(current < end){
+            const msg = await window.realismEngineV32.generateComment(current);
+            await window.realismEngineV32.postMessage(msg);
+            current.setMinutes(current.getMinutes()+Math.floor(Math.random()*11+5));
+          }
+          container.scrollTop = container.scrollHeight;
+        };
+        await window.realismEngineV32.injectHistorical();
 
-        // Generate joiners
+        // Generate initial joiners
         for(let i=0;i<3;i++){
           const joinItem = window.realismEngineV32.generateJoiner();
           await window.realismEngineV32.postJoinSticker(joinItem);
@@ -106,10 +116,33 @@
         }
 
         // Start live message stream
-        setInterval(async ()=>{
-          const comment = await window.realismEngineV32.generateComment();
-          window.realismEngineV32.postMessage(comment);
-        }, 1200);
+        (async function liveLoop(){
+          while(true){
+            const comment = await window.realismEngineV32.generateComment();
+            await window.realismEngineV32.postMessage(comment);
+            if(Math.random()<0.3) window.realismEngineV32.addReaction(comment, window.realismEngineV32.REACTIONS?.[Math.floor(Math.random()*window.realismEngineV32.REACTIONS.length)]);
+            await new Promise(r=>setTimeout(r, Math.floor(Math.random()*2000+1000)));
+          }
+        })();
+
+        // Joiner loop
+        (async function joinerLoop(){
+          while(true){
+            const joinItem = window.realismEngineV32.generateJoiner();
+            await window.realismEngineV32.postJoinSticker(joinItem);
+            await window.realismEngineV32.generateThreadedJoinerReplies(joinItem);
+            await new Promise(r=>setTimeout(r, Math.floor(Math.random()*30000+15000)));
+          }
+        })();
+
+        // Typing simulation
+        (async function typingLoop(){
+          while(true){
+            const persona = await window.realismEngineV32.getNextPersona();
+            document.dispatchEvent(new CustomEvent("headerTyping",{detail:{name:persona.name}}));
+            await new Promise(r=>setTimeout(r, Math.floor(Math.random()*2000+1000)));
+          }
+        })();
 
         window.realismEngineV32.started = true;
       }  
@@ -128,7 +161,6 @@
       // INTERACTIONS READY
       // -------------------------
       window.interactions.ready = true;  
-
       console.log("✅ All systems initialized: Identity, Realism Engine v32, Reactions, Threaded Replies, Pin Banner, Interactions.");  
     })();  
   </script>  
