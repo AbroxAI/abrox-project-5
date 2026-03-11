@@ -99,6 +99,14 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ==========================
+     TYPING DURATION CALCULATION
+  ========================== */
+  window.TGRenderer.calculateTypingDuration = function(message){
+    if(!message) return 1200;
+    return Math.min(4000, Math.max(600, message.length * 35));
+  };
+
+  /* ==========================
      PIN SYSTEM
   ========================== */
   function jumpToMessage(el) {
@@ -126,7 +134,6 @@ document.addEventListener("DOMContentLoaded", () => {
 ✅ To verify or contact admin, use the Contact Admin button below.`;
     const image = "assets/broadcast.jpg";
 
-    // ✅ FIXED: Timestamp set to August 14, 2025
     const timestamp = new Date(2025, 7, 14, 10, 0, 0);
 
     const id = await appendSafe(admin, "", { timestamp, type: "incoming", image, caption });
@@ -171,7 +178,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function postPinNotice() {
-    // ✅ FIXED: Timestamp set to August 14, 2025
     appendSafe({ name: "System", avatar: "assets/admin.jpg" }, "Admin pinned a message", { timestamp: new Date(2025, 7, 14, 10, 0, 0), type: "incoming" });
   }
 
@@ -179,31 +185,33 @@ document.addEventListener("DOMContentLoaded", () => {
      PIN + INITIAL MESSAGE FLOW
   ========================== */
   (async function initPinsAndChat() {
-    // show pinned immediately
     const broadcast = await postAdminBroadcast();
     showPinBanner(broadcast.image, broadcast.id);
     postPinNotice();
     requestAnimationFrame(() => container.scrollTop = container.scrollHeight);
 
-    // now start realism engine (messages & typing)
     const MAX_WAIT = 10000;
     let waited = 0;
     while (
-      (!window.realism?.simulate || !window.identity?.getRandomPersona || !(window.identity.SyntheticPool && window.identity.SyntheticPool.length))
+      (!window.realismEngineV32?.started || !window.identity?.getRandomPersona || !(window.identity.SyntheticPool && window.identity.SyntheticPool.length))
       && waited < MAX_WAIT
     ) {
       await new Promise(r => setTimeout(r, 50));
       waited += 50;
     }
-    if (window.realism?.simulate) window.realism.simulate();
 
-    // initial joiner
+    if (window.realismEngineV32?.started) {
+      if (!window.realismEngineV32.liveLoopRunning) {
+        window.realismEngineV32.liveLoopRunning = true;
+        window.realismEngineV32.multiStepTypingLoop?.();
+      }
+    }
+
     if (window.JOINER_CONFIG?.initialJoins && !window.joinerDone) {
-      window.joiner.simulateJoins(window.JOINER_CONFIG.initialJoins);
+      window.joiner?.simulateJoins?.(window.JOINER_CONFIG.initialJoins);
       window.joinerDone = true;
     }
 
-    // mark interactions ready
     window.interactions.ready = true;
 
   })();
