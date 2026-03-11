@@ -1,4 +1,4 @@
-// ====================== REALISM ENGINE v32 FULLY SYNCED + ULTRA-REALISTIC ======================
+// ====================== REALISM ENGINE v32 FULLY SYNCED + LIVE FIX ======================
 "use strict";
 
 // ===== IMPORT / TEXT POOLS =====
@@ -41,17 +41,6 @@ engine.POOL = [];
 engine.USAGE_TRACK = new Set();
 engine.GENERATED = new Set();
 
-// ===== ULTRA-REALISTIC PERSONA DECORATOR =====
-engine.decoratePersona = function(persona){
-    if(!persona.displayName){
-        const alias = random(CRYPTO_ALIASES);
-        const title = random(TITLES);
-        const slang = SLANG[persona.region] ? random(SLANG[persona.region]) : "";
-        persona.displayName = `${alias} ${title}${slang ? " ("+slang+")" : ""}`;
-    }
-    return persona;
-};
-
 // ===== FULL POOL MANAGEMENT =====
 engine.refillPool = async function(){
     while(this.POOL.length < (window.REALISM_CONFIG?.TOTAL_PERSONAS || 1200)){
@@ -65,12 +54,12 @@ engine.getNextPersona = async function(){
     const persona = this.POOL[idx];
     this.USAGE_TRACK.add(persona.name);
     this.POOL.splice(idx,1);
-    return engine.decoratePersona(persona);
+    return persona;
 };
 
 // ===== COMMENT GENERATOR =====
 engine.generateComment = async function(timestampOverride){
-    const persona = await this.getNextPersona();
+    let persona = await this.getNextPersona();
     let text = random([
         () => `Guys, ${random(TESTIMONIALS)}`,
         () => `Anyone trading ${random(ASSETS)} on ${random(BROKERS)}?`,
@@ -80,6 +69,10 @@ engine.generateComment = async function(timestampOverride){
     ])();
     if(maybe(0.6)) text += " " + random(EMOJIS);
     if(maybe(0.35)) text += " — "+random(["good execution","tight stop","wide stop","no slippage","perfect timing"]);
+    
+    if(SLANG[persona.region] && maybe(0.5)){
+        text = random(SLANG[persona.region]) + " " + text;
+    }
 
     let tries=0;
     while(this.GENERATED.has(text.toLowerCase()) && tries<60){ text+=" "+rand(999); tries++; }
@@ -93,7 +86,7 @@ engine.addReaction = function(item,reaction,persona){
     if(!item.reactions) item.reactions={};
     if(!item.reactions[reaction]) item.reactions[reaction]={count:0,personas:[]};
     item.reactions[reaction].count++;
-    if(persona) item.reactions[reaction].personas.push(persona.displayName||persona.name||persona);
+    if(persona) item.reactions[reaction].personas.push(persona.name||persona);
     if(window.TGRenderer?.updateReactionPill) window.TGRenderer.updateReactionPill(item.id,item.reactions);
 };
 
@@ -119,7 +112,8 @@ engine.postMessage = async function(item){
 // ===== JOINERS =====
 engine.generateJoiner = function(){
     const persona = {name:"User"+rand(1000,9999)};
-    return {persona:engine.decoratePersona(persona),text:random(JOINER_WELCOMES).replace("{user}",persona.name),timestamp:new Date(),type:"joiner",reactions:{}};
+    const text = random(JOINER_WELCOMES).replace("{user}",persona.name);
+    return {persona,text,timestamp:new Date(),type:"joiner",reactions:{}};
 };
 engine.postJoinSticker = async function(joinItem){
     if(window.TGRenderer?.appendJoinSticker) window.TGRenderer.appendJoinSticker([joinItem.persona]);
@@ -144,19 +138,53 @@ engine.generateThreadedJoinerReplies = async function(joinItem){
     }
 };
 
-// ===== HISTORICAL BACKFILL =====
-engine.injectHistorical = async function(){
-    await this.refillPool();
+// ===== HISTORICAL BACKFILL + LIVE FIX =========
+(async function(){
+    const container = document.getElementById("tg-comments-container");
+    if(!container) return;
+
+    // 1️⃣ Backfill
+    console.log("⏳ Injecting historical messages...");
+    await engine.refillPool();
     let current = new Date("2026-08-14T09:00:00");
     const end = new Date();
     while(current < end){
-        const msg = await this.generateComment(current);
-        await this.postMessage(msg);
+        const msg = await engine.generateComment(current);
+        await engine.postMessage(msg);
         current.setMinutes(current.getMinutes()+rand(5,15));
     }
-};
+    container.scrollTop = container.scrollHeight;
+    console.log("✅ Historical messages injected");
 
-// ===== EXPORT / API =====
-engine.attachReactionMenu = function(){};
+    // 2️⃣ Live realism loop
+    (async function liveLoop(){
+        while(true){
+            const msg = await engine.generateComment();
+            await engine.postMessage(msg);
+            if(Math.random() < 0.3) engine.addReaction(msg, random(REACTIons));
+            await new Promise(r=>setTimeout(r, rand(2000,6000)));
+        }
+    })();
 
-console.log("✅ Realism Engine v32 ULTRA-REALISTIC: fully synced with all pools, emojis, slang, crypto aliases, titles, joiners, and reactions");
+    // 3️⃣ Joiners
+    (async function joinerLoop(){
+        while(true){
+            const joinItem = engine.generateJoiner();
+            await engine.postJoinSticker(joinItem);
+            await engine.generateThreadedJoinerReplies(joinItem);
+            await new Promise(r=>setTimeout(r, rand(15000,45000)));
+        }
+    })();
+
+    // 4️⃣ Typing simulation
+    (async function typingLoop(){
+        while(true){
+            const persona = await engine.getNextPersona();
+            document.dispatchEvent(new CustomEvent("headerTyping",{detail:{name:persona.name}}));
+            await new Promise(r=>setTimeout(r, rand(1000,3000)));
+        }
+    })();
+
+})();
+
+console.log("✅ Realism Engine v32 fully synced + live loop enabled");
