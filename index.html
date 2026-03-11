@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />  
   <title>Abrox – Profit Hunters Chat</title>    
   <link rel="stylesheet" href="widget.css" />    
+
   <script>  
     window.CONTACT_ADMIN_LINK = "https://t.me/ph_suppp";  
     window.MEMBER_COUNT = 1284;  
@@ -56,7 +57,10 @@
     </div>
   </div>    
 
+  <!-- ICONS -->
   <script src="https://unpkg.com/lucide@latest"></script>    
+
+  <!-- CORE SCRIPTS -->
   <script src="identity-personas-v7-fixed.js"></script>    
   <script src="bubble-renderer-fixed.js"></script>    
   <script src="realism-engine-v32-dynamic-edits.js"></script>    
@@ -165,6 +169,11 @@
         window.realismEngineV32.showPinBanner?.(broadcast.image, broadcast.id);  
         requestAnimationFrame(()=>container.scrollTop = container.scrollHeight);  
       }  
+
+      // ===== START ENGINE =====
+      if(window.realismEngineV32 && !window.realismEngineV32.started){
+        window.realismEngineV32.start();
+      }
 
       window.interactions.ready = true;  
       console.log("✅ All systems initialized: Identity, Realism Engine v32, Reactions, Threaded Replies, Pin Banner, Multi-step Typing Preview.");  
