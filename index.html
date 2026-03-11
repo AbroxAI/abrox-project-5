@@ -84,7 +84,7 @@
           window.identity?.SyntheticPool?.length &&  
           window.TGRenderer?.appendMessage &&  
           window.queuedTyping &&  
-          window["realism engine v32"]?.postMessage  
+          window.realismEngineV32?.postMessage  
         )) await new Promise(r=>setTimeout(r,50));  
       }  
       await waitForReady();  
@@ -94,19 +94,33 @@
       // -------------------------
       // START REALISM ENGINE v32
       // -------------------------
-      if(!window["realism engine v32"].started){  
-        window["realism engine v32"].injectHistorical?.().then(()=>{
-          window["realism engine v32"].started = true;
-        });
+      if(!window.realismEngineV32.started){  
+        // Inject historical messages
+        await window.realismEngineV32.injectHistorical?.();  
+
+        // Generate joiners
+        for(let i=0;i<3;i++){
+          const joinItem = window.realismEngineV32.generateJoiner();
+          await window.realismEngineV32.postJoinSticker(joinItem);
+          await window.realismEngineV32.generateThreadedJoinerReplies(joinItem);
+        }
+
+        // Start live message stream
+        setInterval(async ()=>{
+          const comment = await window.realismEngineV32.generateComment();
+          window.realismEngineV32.postMessage(comment);
+        }, 1200);
+
+        window.realismEngineV32.started = true;
       }  
 
       // -------------------------
       // POST PIN BANNER & ADMIN MESSAGE
       // -------------------------
-      if(window["realism engine v32"].postAdminBroadcast){  
-        const broadcast = await window["realism engine v32"].postAdminBroadcast();  
-        window["realism engine v32"].postPinNotice?.();  
-        window["realism engine v32"].showPinBanner?.(broadcast.image, broadcast.id);  
+      if(window.realismEngineV32.postAdminBroadcast){  
+        const broadcast = await window.realismEngineV32.postAdminBroadcast();  
+        window.realismEngineV32.postPinNotice?.();  
+        window.realismEngineV32.showPinBanner?.(broadcast.image, broadcast.id);  
         requestAnimationFrame(()=>container.scrollTop = container.scrollHeight);  
       }  
 
