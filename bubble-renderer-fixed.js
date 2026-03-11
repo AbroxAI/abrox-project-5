@@ -21,6 +21,7 @@ function init() {
   const MESSAGE_MAP = new Map();
   let PINNED_MESSAGE_ID = null;
   let INITIAL_LOAD = true;
+  let INPUT_LOCKED = true;
 
   /* =====================================================
      DATE STICKERS
@@ -76,6 +77,11 @@ function init() {
       const item = document.createElement('div');
       item.className = 'tg-reaction-item';
       item.textContent = `${r.emoji} ${r.count}`;
+      item.addEventListener('click', ()=>{
+        r.count++;
+        item.textContent = `${r.emoji} ${r.count}`;
+        if(window.realismEngineV32) window.realismEngineV32.addReaction({id: r.msgId}, r.emoji);
+      });
       pill.appendChild(item);
     });
 
@@ -185,13 +191,14 @@ function init() {
     }
 
     // Reactions
-    const reactionPill = createReactionPill(reactions);
+    const reactionPill = createReactionPill(reactions.map(r=>({...r,msgId:id})));
     if (reactionPill) wrapper.appendChild(reactionPill);
 
     if(prepend) container.insertBefore(wrapper, container.firstChild);
     else container.appendChild(wrapper);
 
     MESSAGE_MAP.set(id,{el:wrapper,text:finalText,persona,timestamp});
+    if(window.updateTypingPreview) window.updateTypingPreview(persona.name, finalText);
     return {el:wrapper,id};
   }
 
