@@ -1,5 +1,4 @@
 <!doctype html>
-
 <html lang="en">  
 <head>  
   <meta charset="utf-8" />  
@@ -8,13 +7,13 @@
   <!-- widget CSS -->    
   <link rel="stylesheet" href="widget.css" />    
   <script>  
-    // ==========================  
-    // SITE CONFIG  
-    // ==========================  
+    // ==========================
+    // SITE CONFIG
+    // ==========================
     window.CONTACT_ADMIN_LINK = "https://t.me/ph_suppp";  
     window.MEMBER_COUNT = 1284;  
     window.ONLINE_COUNT = 128;  
-  
+
     window.REALISM_CONFIG = {  
       TOTAL_PERSONAS: 1200,  
       INITIAL_POOL: 400,  
@@ -58,28 +57,26 @@
         <span class="tg-input-locked-text">Only verified members can send messages</span>  
       </div>  
     </div>
-
   </div>    
 
   <!-- Icons -->    
   <script src="https://unpkg.com/lucide@latest"></script>    
 
-  <!-- ==========================  
-       CORE SCRIPTS  
+  <!-- ==========================
+       CORE SCRIPTS
   ========================== -->    
   <script src="identity-personas-v7-fixed.js"></script>    
   <script src="bubble-renderer-fixed.js"></script>    
-  <script src="realism-engine-v13-fixed.js"></script>    
+  <script src="realism-engine-v32.js"></script>    
   <script src="app.js"></script>    
   <script src="interactions-fixed.js"></script>    
-  <script src="lazy-load-history.js"></script>    
 
-  <!-- ==========================  
-       SAFE INITIALIZATION  
+  <!-- ==========================
+       SAFE INITIALIZATION
   ========================== -->    
   <script>  
     if(window.lucide?.createIcons){ window.lucide.createIcons(); }  
-  
+
     (async function initAllSystems(){  
       // wait for all core systems  
       async function waitForReady() {  
@@ -87,37 +84,38 @@
           window.identity?.SyntheticPool?.length &&  
           window.TGRenderer?.appendMessage &&  
           window.queuedTyping &&  
-          window.realism?.simulate  
+          window["realism engine v32"]?.postMessage  
         )) await new Promise(r=>setTimeout(r,50));  
       }  
       await waitForReady();  
-  
+
       const container = document.getElementById("tg-comments-container");  
-  
-      // -------------------------  
-      // START REALISM ENGINE  
-      // -------------------------  
-      if(!window.realism.started){  
-        window.realism.simulate();  
-        window.realism.started = true;  
+
+      // -------------------------
+      // START REALISM ENGINE v32
+      // -------------------------
+      if(!window["realism engine v32"].started){  
+        window["realism engine v32"].injectHistorical?.().then(()=>{
+          window["realism engine v32"].started = true;
+        });
       }  
-  
-      // -------------------------  
-      // POST PIN BANNER & ADMIN MESSAGE  
-      // -------------------------  
-      if(window.realism.postAdminBroadcast){  
-        const broadcast = await window.realism.postAdminBroadcast();  
-        window.realism.postPinNotice?.();  
-        window.realism.showPinBanner?.(broadcast.image, broadcast.id);  
+
+      // -------------------------
+      // POST PIN BANNER & ADMIN MESSAGE
+      // -------------------------
+      if(window["realism engine v32"].postAdminBroadcast){  
+        const broadcast = await window["realism engine v32"].postAdminBroadcast();  
+        window["realism engine v32"].postPinNotice?.();  
+        window["realism engine v32"].showPinBanner?.(broadcast.image, broadcast.id);  
         requestAnimationFrame(()=>container.scrollTop = container.scrollHeight);  
       }  
-  
-      // -------------------------  
-      // INTERACTIONS READY  
-      // -------------------------  
+
+      // -------------------------
+      // INTERACTIONS READY
+      // -------------------------
       window.interactions.ready = true;  
-  
-      console.log("✅ All systems initialized: Identity, Realism, Reactions, Threaded Replies, Pin Banner, Interactions.");  
+
+      console.log("✅ All systems initialized: Identity, Realism Engine v32, Reactions, Threaded Replies, Pin Banner, Interactions.");  
     })();  
   </script>  
 </body>  
