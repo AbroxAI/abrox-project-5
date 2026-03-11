@@ -1,19 +1,19 @@
-// interactions-enhanced.js — Telegram-style typing + horizontal reaction pill
+// interactions-fixed.js — Telegram-style typing + horizontal reactions + realism engine replies
 (function(){
 "use strict";
 
 /* =====================================================
-   UTIL
+   UTILITIES
 ===================================================== */
 function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
 function rand(min,max){ return Math.floor(Math.random()*(max-min)+min); }
 
 /* =====================================================
-   WAIT FOR SYSTEM
+   WAIT FOR SYSTEM READY
 ===================================================== */
 async function waitForReady(timeout=30000){
   let waited=0;
-  while((!window.identity?.getRandomPersona || !window.TGRenderer?.appendMessage) && waited<timeout){
+  while((!window.identity?.getRandomPersona || !window.TGRenderer?.appendMessage || !window.realismEngineV32?.generateComment) && waited<timeout){
     await delay(50);
     waited+=50;
   }
@@ -21,19 +21,15 @@ async function waitForReady(timeout=30000){
 }
 
 /* =====================================================
-   HEADER TYPING INDICATOR — Telegram style
+   HEADER TYPING INDICATOR
 ===================================================== */
 const metaLine = document.getElementById("tg-meta-line");
 let typingDots = null;
-let typingActive = false;
 
 function showTyping(persona){
   if(!metaLine) return;
-  typingActive = true;
   metaLine.dataset.prev = metaLine.textContent;
   metaLine.textContent = `${persona.name} is typing `;
-
-  // Create bouncing dots if not exist
   if(!typingDots){
     typingDots = document.createElement('span');
     typingDots.className = 'tg-typing-dots';
@@ -44,21 +40,20 @@ function showTyping(persona){
 
 function hideTyping(){
   if(!metaLine) return;
-  typingActive = false;
-  if(metaLine.dataset.prev) metaLine.textContent = metaLine.dataset.prev;
+  metaLine.textContent = metaLine.dataset.prev || "";
   if(typingDots){ typingDots.remove(); typingDots=null; }
 }
 
 /* =====================================================
-   QUEUED TYPING (GLOBAL) — variable speed per persona
+   QUEUED TYPING
 ===================================================== */
 let typingQueue = Promise.resolve();
-
 window.queuedTyping = function(persona,text){
   typingQueue = typingQueue.then(async ()=>{
     if(!persona?.name) return;
     showTyping(persona);
-    const typingTime = Math.min(4000, Math.max(600, (text.length*rand(30,50))));
+    const typingTime = Math.min(4000, Math.max(600, text.length*rand(30,50)));
+    if(window.updateTypingPreview) await window.updateTypingPreview(persona.name,text);
     await delay(typingTime);
     hideTyping();
   });
@@ -66,7 +61,7 @@ window.queuedTyping = function(persona,text){
 };
 
 /* =====================================================
-   HORIZONTAL REACTION PILL FIX
+   HORIZONTAL REACTIONS CSS
 ===================================================== */
 const style = document.createElement('style');
 style.textContent = `
@@ -82,70 +77,54 @@ style.textContent = `
 document.head.appendChild(style);
 
 /* =====================================================
-   USER SEND MESSAGE
-===================================================== */
-const input = document.getElementById("tg-input");
-const sendBtn = document.getElementById("tg-send");
-
-async function sendUserMessage(){
-  if(!input) return;
-  const text = input.value.trim();
-  if(!text) return;
-  if(!await waitForReady()) return;
-
-  const userPersona = { name:"You", avatar:null };
-  window.TGRenderer.appendMessage(userPersona,text,{timestamp:new Date(),type:"outgoing"});
-  input.value = "";
-
-  scrollToBottom();
-  simulateReply(text);
-}
-
-/* =====================================================
-   BOT REPLY
+   SIMULATED BOT REPLY
 ===================================================== */
 async function simulateReply(userText){
   await delay(rand(1200,3500));
   try{
-    const persona = window.identity.getRandomPersona();
-    if(!persona) return;
-
-    let reply = null;
-    if(window.realism?.generateReply){
-      reply = window.realism.generateReply(userText,persona);
-    }
-    if(!reply && window.realism?.postFallbackReply){
-      return window.realism.postFallbackReply(userText);
-    }
-
-    // assign realistic typing speed if not present
-    if(!persona.typingSpeed) persona.typingSpeed = rand(180,280);
-    await window.queuedTyping(persona,reply);
-
-    window.TGRenderer.appendMessage(persona,reply,{timestamp:new Date(),type:"incoming"});
+    if(!window.realismEngineV32?.generateComment) return;
+    const msg = await window.realismEngineV32.generateComment();
+    const persona = msg.persona;
+    const replyText = msg.text;
+    await window.queuedTyping(persona, replyText);
+    window.TGRenderer.appendMessage(persona, replyText, {timestamp:new Date(), type:"incoming"});
     scrollToBottom();
-  }catch(e){ console.warn("simulateReply failed",e); }
+  }catch(e){ console.warn("simulateReply failed", e); }
 }
 
 /* =====================================================
-   SCROLL
+   SCROLL HELPER
 ===================================================== */
 function scrollToBottom(){
   const container=document.querySelector(".tg-comments-container");
-  if(!container) return;
-  setTimeout(()=>{ container.scrollTop=container.scrollHeight; },50);
+  if(container) container.scrollTop=container.scrollHeight;
 }
 
 /* =====================================================
-   ENTER KEY SEND
+   USER MESSAGE — Optional
 ===================================================== */
+const input = document.getElementById("tg-input") || null;
+const sendBtn = document.getElementById("tg-send") || null;
+
+async function sendUserMessage(){
+  if(!input) return; // Read-only if input missing
+  const text = input.value.trim();
+  if(!text) return;
+  if(!await waitForReady()) return;
+  const userPersona = { name:"You", avatar:null };
+  window.TGRenderer.appendMessage(userPersona, text, {timestamp:new Date(), type:"outgoing"});
+  input.value = "";
+  scrollToBottom();
+  simulateReply(text);
+}
+
 if(input){
-  input.addEventListener("keydown",function(e){
+  input.addEventListener("keydown", e=>{
     if(e.key==="Enter"){ e.preventDefault(); sendUserMessage(); }
   });
 }
 if(sendBtn){
-  sendBtn.addEventListener("click",sendUserMessage);
+  sendBtn.addEventListener("click", sendUserMessage);
 }
 
 /* =====================================================
@@ -153,6 +132,6 @@ if(sendBtn){
 ===================================================== */
 (async function init(){
   await waitForReady();
-  console.log("✅ interactions-enhanced ready: Telegram-style typing + horizontal reactions");
+  console.log("✅ interactions-fixed ready: Telegram-style typing + reactions + realism engine replies");
 })();
 })();
