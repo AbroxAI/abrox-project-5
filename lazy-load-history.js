@@ -1,80 +1,58 @@
-// realism-sync-loader-v1.1.js — Full sync loader for realism engine v28.3
+// ===============================================
+// Realism Engine Loader v32.0 — Full Simulation
+// ===============================================
 (function(){
 "use strict";
 
-/* =====================================================
-WAIT FOR REALISM ENGINE READY
-===================================================== */
-async function waitForRealismReady(timeout=60000){
+// Check if the engine is already loaded
+if(window.realism && window.realism.loaded){
+    console.log("✅ Realism engine already loaded.");
+    return;
+}
+
+// Mark engine as loaded
+window.realism = window.realism || {};
+window.realism.loaded = true;
+
+// =====================================================
+// Inject the full realism engine script
+// =====================================================
+const engineScript = document.createElement("script");
+engineScript.type = "text/javascript";
+engineScript.textContent = `
+// ===============================================
+// realism-engine-v32.0-full.js contents start
+// ===============================================
+// Paste the entire v32.0 engine JS you have here
+// (Everything from your last code block, starting with (function(){ "use strict"; ... })();
+// ===============================================
+// realism-engine-v32.0-full.js contents end
+// ===============================================
+`;
+document.head.appendChild(engineScript);
+
+// =====================================================
+// Loader feedback
+// =====================================================
+console.log("🔹 Realism engine v32.0 loader injected. Waiting for page readiness...");
+
+// =====================================================
+// Wait for the engine to be ready and start init()
+// =====================================================
+async function waitForEngineReady(timeout = 30000){
     let waited = 0;
-    while((!window.realism 
-           || !window.identity?.getRandomPersona 
-           || !window.TGRenderer?.appendMessage 
-           || !window.queuedTyping?.start 
-           || !window.queuedTyping?.stop) 
-          && waited < timeout){
-        await new Promise(r => setTimeout(r, 50));
+    while(!(window.realism && window.realism.init) && waited < timeout){
+        await new Promise(r => setTimeout(r,50));
         waited += 50;
     }
-    return !!window.realism 
-        && !!window.identity?.getRandomPersona 
-        && !!window.TGRenderer?.appendMessage 
-        && !!window.queuedTyping?.start 
-        && !!window.queuedTyping?.stop;
-}
-
-/* =====================================================
-PRELOAD HISTORICAL MESSAGES
-===================================================== */
-async function preloadHistoricalMessages(){
-    if(!window.realism?.injectHistorical) return;
-    console.log("⏳ Injecting historical messages from August 14 till yesterday...");
-    await window.realism.injectHistorical();
-    console.log("✅ Historical messages injected!");
-}
-
-/* =====================================================
-PRELOAD MESSAGE POOL
-===================================================== */
-async function preloadPool(min=10000){
-    if(!window.realism) return;
-    console.log(`⏳ Ensuring message pool has at least ${min} items...`);
-    // Clear old pool
-    window.realism.POOL.length = 0;
-    // Fill new pool
-    if(window.realism.ensurePool) window.realism.ensurePool(min);
-    console.log(`✅ Message pool ready: ${window.realism.POOL.length} items`);
-}
-
-/* =====================================================
-START LIVE SIMULATION
-===================================================== */
-async function startSimulation(){
-    console.log("🚀 Starting live realism engine simulation...");
-    if(window.realism.simulateJoiner) window.realism.simulateJoiner(45000,120000);
-    if(window.realism.simulateCrowd) window.realism.simulateCrowd(120,150,600);
-}
-
-/* =====================================================
-MAIN SYNC FUNCTION
-===================================================== */
-async function syncLoader(){
-    const ready = await waitForRealismReady();
-    if(!ready){
-        console.error("❌ Realism engine did not become ready in time!");
-        return;
+    if(window.realism && window.realism.init){
+        console.log("✅ Realism engine ready, initializing...");
+        window.realism.init();
+    } else {
+        console.warn("⚠️ Realism engine did not load within timeout.");
     }
-
-    await preloadHistoricalMessages();
-    await preloadPool(10000);
-    await startSimulation();
-
-    console.log("✅ Realism engine fully loaded and running with historical + live chat!");
 }
 
-/* =====================================================
-START LOADER
-===================================================== */
-syncLoader();
+waitForEngineReady();
 
 })();
