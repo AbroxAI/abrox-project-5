@@ -1,15 +1,23 @@
 (async function(){
 "use strict";
 
+// -----------------------------
+// CONFIG
+// -----------------------------
 const START_DATE = new Date(2025,7,14);
 const END_DATE = new Date(Date.now()-86400000);
 const TOTAL_HISTORICAL = 50000;
-const CHUNK_SIZE = 200;
-const CHUNK_DELAY = 50;
+const MINI_BATCH = 5;
+const BATCH_DELAY = 20;
 
-let container = document.getElementById('tg-comments-container');
+const container = document.getElementById('tg-comments-container');
+const jumpIndicator = document.getElementById('tg-jump-indicator');
+const jumpText = document.getElementById('tg-jump-text');
 let unseenCount = 0;
 
+// -----------------------------
+// UTILS
+// -----------------------------
 function rand(a,b){ return Math.floor(Math.random()*(b-a)+a); }
 function maybe(p){ return Math.random()<p; }
 
@@ -29,7 +37,9 @@ function activity(){
     return rand(150,220);
 }
 
-// --- Generate timeline
+// -----------------------------
+// TIMELINE GENERATION
+// -----------------------------
 function generateTimeline(total){
     const items=[];
     let day = new Date(START_DATE);
@@ -49,109 +59,143 @@ function generateTimeline(total){
     return items.sort((a,b)=>a.timestamp-b.timestamp);
 }
 
-// --- Get realism message
+// -----------------------------
+// REALISM MESSAGE
+// -----------------------------
 function getRealismMessage(){
     window.realism.POOL = window.realism.POOL || [];
-    let msg = null;
-    if(window.realism.POOL.length) msg = window.realism.POOL.shift();
-    if(!msg && window.realism.generateComment) msg = window.realism.generateComment();
-    if(!msg && window.realism.generateConversation) msg = window.realism.generateConversation()?.text;
+    let msg = window.realism.POOL.shift() 
+            || window.realism.generateComment?.() 
+            || window.realism.generateConversation?.()?.text;
     return msg?.text || msg?.message || msg;
 }
 
-// --- Post historic message async
-let headerInserted = false;
-let firstHistoricMsgId = null;
-
+// -----------------------------
+// HISTORIC POST
+// -----------------------------
 async function postHistoric(item){
     const persona = item.persona || window.identity.getRandomPersona();
-    let text;
+    let text = item.type==="join" ? `${persona.name} joined the group` : null;
 
-    if(item.type === "join"){
-        text = `${persona.name} joined the group`;
-    }else{
-        while(!text){
-            text = getRealismMessage();
-        }
-    }
-
-    if(!headerInserted){
-        const headerId = `hist_header_${Date.now()}`;
-        window.TGRenderer.prependMessage({name:"System"},"📜 Historical Messages",{ timestamp:item.timestamp, type:"system-header", id:headerId });
-        headerInserted = true;
-        await new Promise(r=>setTimeout(r,10)); // yield
+    while(item.type==="chat" && !text){
+        text = getRealismMessage();
+        await new Promise(r=>setTimeout(r,1)); // tiny yield
     }
 
     const msgId = `hist_${Date.now()}_${rand(9999)}`;
+    const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 20;
+
     window.TGRenderer.prependMessage(persona, text, { timestamp:item.timestamp, type:"historic", id:msgId });
+
+    if(atBottom) container.scrollTop = container.scrollHeight;
+
     item.id = msgId;
-    if(!firstHistoricMsgId) firstHistoricMsgId = msgId;
-
-    await new Promise(r=>setTimeout(r,1)); // yield so live messages can post
 }
 
-// --- Load history **fully non-blocking**
-async function loadHistoryNonBlocking(){
+// -----------------------------
+// HISTORIC LOADER (incremental)
+// -----------------------------
+async function loadHistoryIncremental(){
     const timeline = generateTimeline(TOTAL_HISTORICAL);
-
-    for(let i=0; i<timeline.length; i+=CHUNK_SIZE){
-        const chunk = timeline.slice(i, i+CHUNK_SIZE);
-        // post each message in chunk asynchronously
-        for(const msg of chunk){
-            postHistoric(msg); // no await here, allow main thread
+    for(let i=0;i<timeline.length;i+=MINI_BATCH){
+        const miniBatch = timeline.slice(i,i+MINI_BATCH);
+        for(const item of miniBatch){
+            await postHistoric(item);
         }
-        await new Promise(r=>setTimeout(r, CHUNK_DELAY)); // small delay between chunks
+        await new Promise(r=>setTimeout(r,BATCH_DELAY));
     }
+    console.log(`✅ Historical chat loaded (${timeline.length} messages)`);
 }
 
-// --- Live message poster
+// -----------------------------
+// LIVE MESSAGES
+// -----------------------------
 async function postLive(){
-    const convo = window.realism.generateConversation?.() || {
-        text:"",
-        persona:window.identity.getRandomPersona()
-    };
-
+    const convo = window.realism.generateConversation?.() || { text:"", persona:window.identity.getRandomPersona() };
     await window.queuedTyping(convo.persona, convo.text);
-
     const now = new Date();
-    const scrollAtBottom =
-        container.scrollTop + container.clientHeight
-        >= container.scrollHeight - 80;
 
-    window.realism.POOL = window.realism.POOL || [];
-    const liveItem = { ...convo, timestamp: now };
-    window.realism.POOL.push(liveItem);
+    const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 80;
 
-    window.TGRenderer.appendMessage(convo.persona, convo.text, { timestamp:now, type:"incoming", bubblePreview:true });
+    window.TGRenderer.appendMessage(convo.persona, convo.text, { timestamp:now, type:"incoming" });
 
-    if(scrollAtBottom){
+    if(atBottom){
         container.scrollTop = container.scrollHeight;
     }else{
         unseenCount++;
+        updateJump();
+        showJump();
     }
 }
 
-// --- Init
+// -----------------------------
+// JUMP INDICATOR
+// -----------------------------
+function updateJump(){
+    if(!jumpText) return;
+    jumpText.textContent = unseenCount>1 ? `New messages · ${unseenCount}` : 'New message';
+}
+function showJump(){ jumpIndicator?.classList.remove('hidden'); }
+function hideJump(){ unseenCount=0; updateJump(); jumpIndicator?.classList.add('hidden'); }
+
+jumpIndicator?.addEventListener('click', ()=>{
+    container.scrollTop = container.scrollHeight;
+    hideJump();
+});
+
+container?.addEventListener('scroll', ()=>{
+    const distance = container.scrollHeight - container.scrollTop - container.clientHeight;
+    if(distance < 80) hideJump();
+});
+
+// -----------------------------
+// LIVE POOL & CROWD BURST
+// -----------------------------
+function ensureLivePool(min=10000){
+    window.realism.POOL = window.realism.POOL || [];
+    while(window.realism.POOL.length < min){
+        const msg = window.realism.generateComment();
+        msg.timestamp = new Date();
+        window.realism.POOL.push(msg);
+        if(window.realism.POOL.length > 50000) break;
+    }
+}
+
+async function simulateCrowdBurst(total=150){
+    ensureLivePool(total);
+    while(total>0 && window.realism.POOL.length>0){
+        const burstCount = rand(3,8);
+        const burst = window.realism.POOL.splice(0,burstCount);
+        await Promise.all(burst.map(item=>window.realism.postMessage(item)));
+        await new Promise(r=>setTimeout(r, rand(100,500)));
+    }
+}
+
+// -----------------------------
+// INIT
+// -----------------------------
 async function init(){
-    // wait for identity & renderer
-    while(!window.identity?.SyntheticPool?.length ||
-          !window.TGRenderer?.prependMessage ||
-          !window.TGRenderer?.appendMessage ||
-          !window.queuedTyping ||
-          !window.realism?.simulate){
+    // wait for all deps
+    while(!window.identity?.SyntheticPool?.length || !window.TGRenderer?.prependMessage || !window.TGRenderer?.appendMessage || !window.queuedTyping || !window.realism?.simulate){
         await new Promise(r=>setTimeout(r,50));
     }
 
-    // start live feed immediately
+    console.log("✅ All dependencies ready");
+
+    // start live simulation
     window.realism.simulate();
     window.realism.simulateJoiner(45000,120000);
     setInterval(postLive, rand(12000,40000));
 
-    // load history in background
-    loadHistoryNonBlocking();
+    // load historical chat
+    await loadHistoryIncremental();
 
-    console.log("✅ Live chat running immediately while historical messages load asynchronously");
+    // crowd bursts
+    simulateCrowdBurst(200);
+
+    console.log("✅ Live chat + historical messages + jump indicator running");
 }
 
 init();
+
 })();
