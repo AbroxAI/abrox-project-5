@@ -101,12 +101,10 @@
     // Optional: Listen for header typing events
     document.addEventListener('headerTyping', (e) => {
       console.log(e.detail.name + " is typing…");
-      // You can add a UI indicator here
     });
 
     document.addEventListener('headerTypingStop', (e) => {
       console.log(e.detail.name + " stopped typing");
-      // Remove the typing indicator here
     });
   </script>
 </body>
