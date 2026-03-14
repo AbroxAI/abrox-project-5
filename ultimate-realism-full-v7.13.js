@@ -1,4 +1,4 @@
-// ultimate-realism-full-v7.13.js — Full Human-Like Multi-Turn Realism Engine (FIXED)
+// ultimate-realism-full-v7.14.js — Full Human-Like Multi-Turn Realism Engine (MERGED JOINERS + SMOOTH SCROLL)
 (function(){
 'use strict';
 
@@ -150,7 +150,30 @@ function generateComment(persona,lastTimestamp=new Date()){
 }
 
 /* =====================================================
-   QUEUE
+   MERGED JOINERS QUEUE
+===================================================== */
+let pendingJoiners = [];
+let joinerTimeout;
+
+function queueJoiner(joinerPersona) {
+  if (!joinerPersona?.name) return;
+  pendingJoiners.push(joinerPersona.name);
+
+  if (joinerTimeout) clearTimeout(joinerTimeout);
+
+  joinerTimeout = setTimeout(() => {
+    if (window.TGRenderer?.appendJoinSticker) {
+      window.TGRenderer.appendJoinSticker(pendingJoiners);
+
+      const container = document.getElementById('tg-comments-container');
+      if (container) container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    }
+    pendingJoiners = [];
+  }, 1200);
+}
+
+/* =====================================================
+   QUEUE LOGIC
 ===================================================== */
 const interactionQueue=[];
 let processingQueue=false;
@@ -162,168 +185,103 @@ function enqueueInteraction(interaction){
 }
 
 async function processQueue(){
-
   if(processingQueue||interactionQueue.length===0) return;
-
   processingQueue=true;
 
   while(interactionQueue.length>0){
-
     const inter=interactionQueue.shift();
     const {persona,text,parentText,parentId,meta}=inter;
 
     const opts={};
-
     if(parentText||parentId){
       opts.replyToId=parentId||null;
       opts.replyToText=parentText||null;
     }
-
-    if(meta){
-
-      if(meta.reaction){
-        opts.reactions=[{
-          emoji:meta.reaction,
-          count:1+Math.floor(Math.random()*5)
-        }];
-      }
-
+    if(meta && meta.reaction){
+      opts.reactions=[{ emoji:meta.reaction, count:1+Math.floor(Math.random()*5) }];
     }
 
     if(window.TGRenderer?.appendMessage){
-
       const typing=humanTypingDelay(text,persona);
       await new Promise(r=>setTimeout(r,typing));
-
       const id=window.TGRenderer.appendMessage(persona,text,opts);
-
       inter.id=id;
     }
-
   }
-
   processingQueue=false;
-
 }
 
 /* =====================================================
-   AUTO SIMULATION
+   MULTI-TURN REPLIES
+===================================================== */
+function simulateMultiTurnReply(joinerPersona,parentComment,depth=0){
+ if(depth>3) return;
+ let replyText=REPLY_TEMPLATES[Math.floor(Math.random()*REPLY_TEMPLATES.length)];
+ const delay=randomDelay(2000,12000);
+ setTimeout(()=>{
+  enqueueInteraction({ persona:joinerPersona, text:replyText, parentText:parentComment.text, parentId:parentComment.id||null });
+  joinerPersona.memory.push(replyText);
+  if(Math.random()<0.3){
+    const followUp=getRandomPersona();
+    simulateMultiTurnReply(followUp,{ text:replyText, id:parentComment.id },depth+1);
+  }
+ },delay);
+}
+
+/* =====================================================
+   AUTO SIMULATION LOOP (MERGED JOINERS)
 ===================================================== */
 function autoSimulate(lastTimestamp=new Date()){
-
   const persona=getRandomPersona();
   let randomComment=generateComment(persona,lastTimestamp);
-
   enqueueInteraction(randomComment);
 
-  /* JOIN STICKER EVENT */
-
+  // MERGED JOINERS
   if(Math.random()<0.08){
     const joinCount=1+Math.floor(Math.random()*3);
-    const names=[];
     for(let i=0;i<joinCount;i++){
-      names.push(getRandomPersona().name);
+      queueJoiner(getRandomPersona());
     }
-    window.TGRenderer?.appendJoinSticker(names);
   }
 
-  /* CLUSTERS */
-
+  // CLUSTERS
   if(Math.random()<0.25){
-
     let clusterSize=1+Math.floor(Math.random()*3);
-
     for(let i=1;i<clusterSize;i++){
-
       let nextMsg=generateComment(persona,randomComment.timestamp);
-
-      if(Math.random()<0.4){
-        nextMsg.parentText=randomComment.text;
-        nextMsg.parentId=randomComment.id;
-      }
-
-      nextMsg.timestamp=new Date(
-        randomComment.timestamp.getTime()+500+Math.random()*1500
-      );
-
+      if(Math.random()<0.4){ nextMsg.parentText=randomComment.text; nextMsg.parentId=randomComment.id; }
+      nextMsg.timestamp=new Date(randomComment.timestamp.getTime()+500+Math.random()*1500);
       enqueueInteraction(nextMsg);
-
       randomComment=nextMsg;
-
     }
-
   }
 
-  /* MULTI TURN REPLY */
-
+  // MULTI-TURN
   if(Math.random()<0.15){
     const joiner=getRandomPersona();
     simulateMultiTurnReply(joiner,randomComment);
   }
 
   const nextDelay=randomDelay(1500,6000);
-
   setTimeout(()=>autoSimulate(randomComment.timestamp),nextDelay);
-
 }
 
 /* =====================================================
-   MULTI TURN REPLIES
-===================================================== */
-function simulateMultiTurnReply(joinerPersona,parentComment,depth=0){
-
- if(depth>3) return;
-
- let replyText=REPLY_TEMPLATES[Math.floor(Math.random()*REPLY_TEMPLATES.length)];
-
- const delay=randomDelay(2000,12000);
-
- setTimeout(()=>{
-
-  enqueueInteraction({
-    persona:joinerPersona,
-    text:replyText,
-    parentText:parentComment.text,
-    parentId:parentComment.id||null
-  });
-
-  joinerPersona.memory.push(replyText);
-
-  if(Math.random()<0.3){
-    const followUp=getRandomPersona();
-    simulateMultiTurnReply(followUp,{
-      text:replyText,
-      id:parentComment.id
-    },depth+1);
-  }
-
- },delay);
-
-}
-
-/* =====================================================
-   INIT
+   POOL INIT
 ===================================================== */
 function ensurePool(min=15000){
-
  let ts=new Date();
-
  while(POOL.length<min){
-
   let persona=getRandomPersona();
   let comment=generateComment(persona,ts);
-
   POOL.push(comment);
   ts=comment.timestamp;
-
  }
-
 }
 
 ensurePool();
-
 setTimeout(()=>autoSimulate(),1200);
 
-console.log("✅ Ultimate Realism Engine Full v7.13 — FIXED reactions, replies, clusters, join stickers.");
+console.log("✅ Ultimate Realism Engine Full v7.14 — MERGED joiners + smooth scrolling + reactions + multi-turn replies ready.");
 
 })();
