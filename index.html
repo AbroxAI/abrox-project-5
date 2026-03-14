@@ -84,8 +84,8 @@
   <!-- Scripts (load in order) -->
   <script src="identity-personas.js"></script>
   <script src="bubble-renderer-fixed-v2.js"></script>
-  <script src="ultimate-realism-engine-v1.js"></script>
-  <script src="interactions-v14.1-crowd-join-replies-typing-auto-hide.js"></script>
+  <script src="ultimate-realism-full-v7.13.js"></script>
+  <script src="interactions-v14.1-full.js"></script>
   <script src="app-fixed.js"></script>
 
   <!-- Initialize icons and enforce input lock -->
@@ -93,18 +93,17 @@
     if(window.lucide?.createIcons){ window.lucide.createIcons(); }
 
     document.addEventListener('DOMContentLoaded', () => {
-      if (window.TGRenderer?.lockInput) {
-        window.TGRenderer.lockInput();
-      }
-    });
+      // Lock input bar
+      if (window.TGRenderer?.lockInput) window.TGRenderer.lockInput();
 
-    // Optional: Listen for header typing events
-    document.addEventListener('headerTyping', (e) => {
-      console.log(e.detail.name + " is typing…");
-    });
+      // Optionally log typing events
+      document.addEventListener('headerTyping', (e) => {
+        console.log(e.detail.name + " is typing…");
+      });
 
-    document.addEventListener('headerTypingStop', (e) => {
-      console.log(e.detail.name + " stopped typing");
+      document.addEventListener('headerTypingStop', (e) => {
+        console.log(e.detail.name + " stopped typing");
+      });
     });
   </script>
 </body>
