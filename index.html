@@ -83,9 +83,9 @@
 
   <!-- Scripts (load in order) -->
   <script src="identity-personas.js"></script>
-  <script src="bubble-renderer-fixed.js"></script>
-  <script src="realism-engine-v12.4.js"></script>
-  <script src="interactions-v11-full-sync.js"></script>
+  <script src="bubble-renderer-fixed-v2.js"></script>
+  <script src="ultimate-realism-engine-v1.js"></script>
+  <script src="interactions-v14.1-crowd-join-replies-typing-auto-hide.js"></script>
   <script src="app-fixed.js"></script>
 
   <!-- Initialize icons and enforce input lock -->
@@ -96,6 +96,17 @@
       if (window.TGRenderer?.lockInput) {
         window.TGRenderer.lockInput();
       }
+    });
+
+    // Optional: Listen for header typing events
+    document.addEventListener('headerTyping', (e) => {
+      console.log(e.detail.name + " is typing…");
+      // You can add a UI indicator here
+    });
+
+    document.addEventListener('headerTypingStop', (e) => {
+      console.log(e.detail.name + " stopped typing");
+      // Remove the typing indicator here
     });
   </script>
 </body>
