@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* =====================================================
-     HEADER TYPING MANAGER (AUTHORITATIVE SOURCE)
+     HEADER TYPING MANAGER
   ===================================================== */
   const typingPersons = new Map();
 
@@ -135,7 +135,7 @@ document.addEventListener("DOMContentLoaded", () => {
 ✅ To verify or contact admin, use the Contact Admin button below.`;
 
     const image = "assets/broadcast.jpg";
-    const timestamp = new Date(2025, 2, 14, 10, 0, 0);
+    const timestamp = new Date();
 
     const id = appendSafe(admin, "", {
       timestamp,
@@ -259,7 +259,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   /* =====================================================
-     START REALISM ENGINE (SAFE)
+     START REALISM ENGINE
   ===================================================== */
   if (window.realism?.simulate) {
     setTimeout(() => {
