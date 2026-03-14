@@ -1,4 +1,4 @@
-// bubble-renderer-fixed-v2.js — FINAL CLEAN + JOIN STICKERS + REACTION PILLS
+// bubble-renderer-fixed-v2.js — FINAL CLEAN + JOIN STICKERS + REACTION PILLS + AUTO SCROLL + MERGED JOINERS
 (function () {
 'use strict';
 
@@ -18,6 +18,9 @@ function init() {
   const MESSAGE_MAP = new Map();
   let PINNED_MESSAGE_ID = null;
 
+  // Track join stickers in progress to merge names
+  let pendingJoiners = [];
+
   /* =====================================================
      DATE STICKERS
   ===================================================== */
@@ -29,7 +32,6 @@ function init() {
   function insertDateSticker(date) {
     const key = formatDateKey(date);
     if (key === lastDateKey) return;
-
     lastDateKey = key;
 
     const sticker = document.createElement('div');
@@ -47,19 +49,14 @@ function init() {
      PERSONA COLORS
   ===================================================== */
   const personaColorMap = new Map();
-  const personaColors = [
-    "1","2","3","4","5","6","7","8","9","10","11","12","13","14","15"
-  ];
+  const personaColors = ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15"];
 
   function getPersonaColor(name) {
     if (!name) return "1";
-
     if (!personaColorMap.has(name)) {
-      const assigned =
-        personaColors[personaColorMap.size % personaColors.length];
+      const assigned = personaColors[personaColorMap.size % personaColors.length];
       personaColorMap.set(name, assigned);
     }
-
     return personaColorMap.get(name);
   }
 
@@ -68,17 +65,14 @@ function init() {
   ===================================================== */
   function createBubble(persona, text, opts = {}) {
 
-    const id =
-      opts.id ||
-      ('m_' + Date.now() + '_' + Math.floor(Math.random() * 9999));
-
+    const id = opts.id || ('m_' + Date.now() + '_' + Math.floor(Math.random() * 9999));
     const type = opts.type === 'outgoing' ? 'outgoing' : 'incoming';
     const timestamp = opts.timestamp || new Date();
     const replyToId = opts.replyToId || null;
     const replyToText = opts.replyToText || null;
     const image = opts.image || null;
     const caption = opts.caption || null;
-    const reactions = opts.reactions || []; // array of {emoji, count}
+    const reactions = opts.reactions || [];
 
     insertDateSticker(timestamp);
 
@@ -90,59 +84,38 @@ function init() {
     const avatar = document.createElement('img');
     avatar.className = 'tg-bubble-avatar';
     avatar.alt = persona?.name || 'User';
-    avatar.src =
-      persona?.avatar ||
-      `https://ui-avatars.com/api/?name=${encodeURIComponent(persona?.name || 'U')}`;
-
-    avatar.onerror = () =>
-      avatar.src =
-        `https://ui-avatars.com/api/?name=${encodeURIComponent(persona?.name || 'U')}`;
+    avatar.src = persona?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(persona?.name || 'U')}`;
+    avatar.onerror = () => avatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(persona?.name || 'U')}`;
 
     const content = document.createElement('div');
     content.className = 'tg-bubble-content';
 
-    /* Sender */
+    // Sender
     const sender = document.createElement('div');
     sender.className = 'tg-bubble-sender';
     sender.textContent = persona?.name || 'User';
-    sender.dataset.color =
-      getPersonaColor(persona?.name || 'User');
+    sender.dataset.color = getPersonaColor(persona?.name || 'User');
     content.appendChild(sender);
 
-    /* Reply preview */
+    // Reply preview
     if (replyToText || replyToId) {
-
       const replyPreview = document.createElement('div');
       replyPreview.className = 'tg-reply-preview';
-
       replyPreview.textContent = replyToText
-        ? (replyToText.length > 120
-            ? replyToText.slice(0, 117) + '...'
-            : replyToText)
+        ? (replyToText.length > 120 ? replyToText.slice(0,117)+'...' : replyToText)
         : 'Reply';
-
       replyPreview.addEventListener('click', () => {
         if (!replyToId) return;
-
         const target = MESSAGE_MAP.get(replyToId);
         if (!target) return;
-
-        target.el.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center'
-        });
-
+        target.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         target.el.classList.add('tg-highlight');
-        setTimeout(() =>
-          target.el.classList.remove('tg-highlight'),
-          2600
-        );
+        setTimeout(() => target.el.classList.remove('tg-highlight'), 2600);
       });
-
       content.appendChild(replyPreview);
     }
 
-    /* Image */
+    // Image
     if (image) {
       const img = document.createElement('img');
       img.className = 'tg-bubble-image';
@@ -153,20 +126,18 @@ function init() {
       content.appendChild(img);
     }
 
-    /* Text / Caption */
+    // Text / caption
     const finalText = caption || text;
-
     if (finalText) {
       const textEl = document.createElement('div');
       textEl.className = 'tg-bubble-text';
       textEl.style.whiteSpace = 'pre-line';
       textEl.textContent = finalText;
       content.appendChild(textEl);
-
       if (caption) PINNED_MESSAGE_ID = id;
     }
 
-    /* Reaction pill */
+    // Reactions
     if (reactions.length) {
       const pill = document.createElement('div');
       pill.className = 'tg-bubble-reactions';
@@ -179,7 +150,7 @@ function init() {
       content.appendChild(pill);
     }
 
-    /* Admin button */
+    // Admin button
     if (persona?.isAdmin) {
       const adminBtn = document.createElement('a');
       adminBtn.className = 'glass-btn';
@@ -190,15 +161,10 @@ function init() {
       content.appendChild(adminBtn);
     }
 
-    /* Time */
+    // Timestamp
     const meta = document.createElement('div');
     meta.className = 'tg-bubble-meta';
-    meta.textContent =
-      new Date(timestamp).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-
+    meta.textContent = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     content.appendChild(meta);
 
     if (type === 'incoming') {
@@ -210,56 +176,53 @@ function init() {
       wrapper.appendChild(content);
     }
 
-    MESSAGE_MAP.set(id, {
-      el: wrapper,
-      text: finalText,
-      persona,
-      timestamp
-    });
-
+    MESSAGE_MAP.set(id, { el: wrapper, text: finalText, persona, timestamp });
     return { el: wrapper, id };
   }
 
   /* =====================================================
-     JOIN STICKER
+     JOIN STICKER (MERGED)
   ===================================================== */
   function appendJoinSticker(names) {
     if (!names || !names.length) return;
+
+    // Merge new names with pending ones
+    pendingJoiners.push(...names);
+
+    // Remove any existing join sticker at the bottom
+    const lastSticker = container.querySelector('.tg-join-sticker:last-of-type');
+    if (lastSticker) lastSticker.remove();
 
     const wrapper = document.createElement('div');
     wrapper.className = 'tg-join-sticker';
 
     const textEl = document.createElement('div');
     textEl.className = 'tg-join-text';
-    textEl.textContent = names.length > 3
-      ? `${names.slice(0,3).join(', ')} & ${names.length-3} others joined the chat`
-      : `${names.join(', ')} joined the chat`;
+    textEl.textContent = pendingJoiners.length > 3
+      ? `${pendingJoiners.slice(0,3).join(', ')} & ${pendingJoiners.length-3} others joined the chat`
+      : `${pendingJoiners.join(', ')} joined the chat`;
 
     wrapper.appendChild(textEl);
     container.appendChild(wrapper);
 
-    container.scrollTop = container.scrollHeight;
+    // Auto-scroll if near bottom
+    const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 80;
+    if (atBottom) container.scrollTop = container.scrollHeight;
+
+    // Clear pending joiners after render
+    pendingJoiners = [];
   }
 
   /* =====================================================
      APPEND MESSAGE
   ===================================================== */
   function appendMessage(persona, text, opts = {}) {
-
     const result = createBubble(persona, text, opts);
     container.appendChild(result.el);
 
-    const atBottom =
-      container.scrollTop + container.clientHeight >=
-      container.scrollHeight - 80;
-
-    if (atBottom) {
-      container.scrollTop = container.scrollHeight;
-    } else {
-      unseenCount++;
-      updateJump();
-      showJump();
-    }
+    const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 80;
+    if (atBottom) container.scrollTop = container.scrollHeight;
+    else { unseenCount++; updateJump(); showJump(); }
 
     return result.id;
   }
@@ -269,54 +232,24 @@ function init() {
   ===================================================== */
   function updateJump() {
     if (!jumpText) return;
-
-    jumpText.textContent =
-      unseenCount > 1
-        ? `New messages · ${unseenCount}`
-        : 'New messages';
+    jumpText.textContent = unseenCount > 1 ? `New messages · ${unseenCount}` : 'New messages';
   }
+  function showJump() { jumpIndicator?.classList.remove('hidden'); }
+  function hideJump() { unseenCount = 0; updateJump(); jumpIndicator?.classList.add('hidden'); }
 
-  function showJump() {
-    jumpIndicator?.classList.remove('hidden');
-  }
-
-  function hideJump() {
-    unseenCount = 0;
-    updateJump();
-    jumpIndicator?.classList.add('hidden');
-  }
-
-  jumpIndicator?.addEventListener('click', () => {
-    container.scrollTop = container.scrollHeight;
-    hideJump();
-  });
-
+  jumpIndicator?.addEventListener('click', () => { container.scrollTop = container.scrollHeight; hideJump(); });
   container.addEventListener('scroll', () => {
-    const distance =
-      container.scrollHeight -
-      container.scrollTop -
-      container.clientHeight;
-
+    const distance = container.scrollHeight - container.scrollTop - container.clientHeight;
     if (distance < 80) hideJump();
   });
 
   /* =====================================================
-     TYPING DURATION (SHARED CALCULATION ONLY)
+     TYPING DURATION
   ===================================================== */
   function calculateTypingDuration(message) {
     if (!message) return 1200;
-
-    const baseSpeed = 45;
-    const minTime = 1000;
-    const maxTime = 6000;
-
-    let duration = message.length * baseSpeed;
-    duration += Math.random() * 800;
-
-    if (duration < minTime) duration = minTime;
-    if (duration > maxTime) duration = maxTime;
-
-    return Math.floor(duration);
+    let duration = message.length * 45 + Math.random() * 800;
+    return Math.min(Math.max(duration, 1000), 6000);
   }
 
   /* =====================================================
@@ -329,11 +262,9 @@ function init() {
     calculateTypingDuration
   };
 
-  console.log('✅ bubble-renderer FINAL V2 — JOIN STICKERS + REACTIONS integrated.');
+  console.log('✅ bubble-renderer FINAL V2 — JOIN STICKERS + REACTIONS + MERGE FIX integrated.');
 }
 
-document.readyState === 'loading'
-  ? document.addEventListener('DOMContentLoaded', init)
-  : init();
+document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', init) : init();
 
 })();
