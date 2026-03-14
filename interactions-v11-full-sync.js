@@ -1,4 +1,4 @@
-// interactions-v14.4-real-full-sync.js — Crowd reactions + joiners + typing + timestamps + pills
+// interactions-v14.2-crowd-join-replies-multi-typing.js
 (function(){
 
 'use strict';
@@ -8,8 +8,8 @@
 ===================================================== */
 const interactionQueue = [];
 let processingQueue = false;
+const activeTypers = new Set();
 
-// enqueue messages for sequential sending
 function enqueueInteraction(interaction){
     if(!interaction || !interaction.persona || !interaction.text) return;
     interactionQueue.push(interaction);
@@ -20,11 +20,26 @@ async function processQueue(){
     if(processingQueue || interactionQueue.length===0) return;
     processingQueue = true;
 
-    while(interactionQueue.length > 0){
+    while(interactionQueue.length>0){
         const interaction = interactionQueue.shift();
         const { persona, text, parentText, parentId } = interaction;
 
         if(!persona || !text) continue;
+
+        // **Multi-persona header typing**
+        if(persona?.name){
+            activeTypers.add(persona.name);
+            document.dispatchEvent(new CustomEvent("headerTyping", { detail: { names: Array.from(activeTypers) } }));
+
+            const duration = window.TGRenderer?.calculateTypingDuration?.(text) || 1200;
+            setTimeout(() => {
+                activeTypers.delete(persona.name);
+                document.dispatchEvent(new CustomEvent("headerTyping", { detail: { names: Array.from(activeTypers) } }));
+            }, duration);
+        }
+
+        const typingDuration = window.TGRenderer?.calculateTypingDuration?.(text) || 1200;
+        await new Promise(res => setTimeout(res, typingDuration + 200));
 
         const opts = {};
         if(parentText || parentId){
@@ -32,25 +47,9 @@ async function processQueue(){
             opts.replyToText = parentText;
         }
 
-        // Header typing simulation
-        if(persona?.name){
-            document.dispatchEvent(new CustomEvent("headerTyping", { detail: { name: persona.name } }));
-        }
-
-        const typingDuration = window.TGRenderer?.calculateTypingDuration?.(text) || 1200;
-        await new Promise(res => setTimeout(res, typingDuration + 200));
-
-        // Append message
         if(window.TGRenderer?.appendMessage){
-            const msgId = window.TGRenderer.appendMessage(persona, text, { 
-                timestamp: new Date(), 
-                type: "incoming",
-                ...opts 
-            });
+            const msgId = window.TGRenderer.appendMessage(persona, text, opts);
             interaction._msgId = msgId;
-
-            // auto reactions for this message
-            window.interactions.react({ id: msgId, reactions: interaction.reactions || [] });
         }
     }
 
@@ -58,27 +57,14 @@ async function processQueue(){
 }
 
 /* =====================================================
-   REPLY TEMPLATES
+   RANDOM AUTO-REPLIES
 ===================================================== */
 const REPLY_TEMPLATES = [
-    "Yes, I agree!",
-    "Exactly 💯",
-    "Nice point 👍",
-    "I’ve been thinking the same.",
-    "Can you elaborate?",
-    "Interesting 🤔",
-    "😂 That’s funny!",
-    "Absolutely 🚀",
-    "Good catch!",
-    "Thanks for sharing 💡",
-    "Welcome aboard! 👋",
-    "Glad to be here!",
-    "Excited to join the discussion!",
-    "Looking forward to trading today!",
-    "Market seems volatile 🔥",
-    "Any signals on EUR/USD?",
-    "Watching BTC closely today",
-    "Hoping for green trades 🌿"
+    "Yes, I agree!","Exactly 💯","Nice point 👍","I’ve been thinking the same.",
+    "Can you elaborate?","Interesting 🤔","😂 That’s funny!","Absolutely 🚀",
+    "Good catch!","Thanks for sharing 💡","Welcome aboard! 👋","Glad to be here!",
+    "Excited to join the discussion!","I second that!","Love this insight!",
+    "True that!","Well explained 💯","Interesting perspective","Couldn't agree more 👍"
 ];
 
 function getRandomReply(){
@@ -91,7 +77,6 @@ function getRandomReply(){
 function renderReactions(bubbleEntry, reactions){
     if(!bubbleEntry || !bubbleEntry.el) return;
 
-    // remove old pill
     let pill = bubbleEntry.el.querySelector('.tg-bubble-reactions');
     if(pill) pill.remove();
 
@@ -103,17 +88,12 @@ function renderReactions(bubbleEntry, reactions){
         span.className = 'reaction';
         span.textContent = `${r.emoji} ${r.count}`;
         span.style.cursor = 'pointer';
-
-        // hover effect
-        span.addEventListener('mouseenter', ()=>span.style.backgroundColor='#eee');
-        span.addEventListener('mouseleave', ()=>span.style.backgroundColor='');
-
-        // click increments count
-        span.addEventListener('click', ()=>{
+        span.addEventListener('mouseenter', () => span.style.backgroundColor = '#eee');
+        span.addEventListener('mouseleave', () => span.style.backgroundColor = '');
+        span.addEventListener('click', () => {
             r.count += 1;
             span.textContent = `${r.emoji} ${r.count}`;
         });
-
         pill.appendChild(span);
     });
 
@@ -121,25 +101,22 @@ function renderReactions(bubbleEntry, reactions){
 }
 
 /* =====================================================
-   AUTO-REACTION + CROWD SIMULATION
+   AUTO-REACTION TRIGGERS
 ===================================================== */
 function autoReactToMessage(message){
     if(!message || !window.TGRenderer?.MESSAGE_MAP) return;
-
     if(!message.reactions) message.reactions = [];
 
-    // 25% random reaction
-    if(Math.random()<0.25){
+    if(Math.random() < 0.25){
         const emojiPool = ["🔥","💯","👍","💹","🚀","✨","👏"];
         const reaction = emojiPool[Math.floor(Math.random()*emojiPool.length)];
         message.reactions.push({ emoji: reaction, count: Math.floor(Math.random()*5)+1 });
     }
 
-    // Crowd clicks
-    if(Math.random()<0.4 && window.identity){
+    if(Math.random() < 0.4 && window.identity){
         const crowdClicks = Math.floor(Math.random()*3)+1;
-        for(let i=0;i<crowdClicks;i++){
-            if(message.reactions.length===0) break;
+        for(let i=0; i<crowdClicks; i++){
+            if(message.reactions.length === 0) break;
             const r = message.reactions[Math.floor(Math.random()*message.reactions.length)];
             r.count += 1;
         }
@@ -157,21 +134,10 @@ function simulateJoinerReply(joinerPersona){
     const randomComment = window.realismEngineV12Pool[Math.floor(Math.random()*window.realismEngineV12Pool.length)];
     enqueueInteraction({ persona: joinerPersona, text, parentText: randomComment?.text, parentId: randomComment?.id });
     autoReactToMessage(randomComment);
-}
 
-/* =====================================================
-   POOL INIT
-===================================================== */
-if(!window.realismEngineV12Pool) window.realismEngineV12Pool = [];
-
-if(window.realismEngineV12Pool.length === 0){
-    const fillerComments = [
-        { text: "Hello everyone! 👋", timestamp: new Date() },
-        { text: "Watching the market today 🚀", timestamp: new Date() },
-        { text: "Any updates on BTC?", timestamp: new Date() },
-        { text: "Good morning all!", timestamp: new Date() }
-    ];
-    window.realismEngineV12Pool.push(...fillerComments);
+    if(window.TGRenderer?.appendJoinSticker){
+        window.TGRenderer.appendJoinSticker([joinerPersona.name]);
+    }
 }
 
 /* =====================================================
@@ -193,17 +159,17 @@ window.interactions = {
 ===================================================== */
 function autoSimulate(){
     if(!window.realismEngineV12Pool || window.realismEngineV12Pool.length===0) return;
-    if(!window.identity?.getRandomPersona) return;
+    const persona = window.identity?.getRandomPersona();
+    if(!persona) return;
 
-    const persona = window.identity.getRandomPersona();
     const randomComment = window.realismEngineV12Pool[Math.floor(Math.random()*window.realismEngineV12Pool.length)];
     if(!randomComment) return;
 
     window.interactions.simulateReply(persona, randomComment);
 
     // Occasionally simulate a joiner reply
-    if(Math.random()<0.08){
-        const joiner = window.identity.getRandomPersona();
+    if(Math.random() < 0.1){
+        const joiner = window.identity?.getRandomPersona();
         if(joiner) window.interactions.joinReply(joiner);
     }
 
@@ -211,15 +177,8 @@ function autoSimulate(){
     setTimeout(autoSimulate, nextInterval);
 }
 
-// start simulation when pool is ready
-function startSimulation(){
-    if(!window.realismEngineV12Pool || window.realismEngineV12Pool.length === 0 || !window.identity?.getRandomPersona){
-        return setTimeout(startSimulation, 500);
-    }
-    autoSimulate();
-}
+setTimeout(autoSimulate, 1200);
 
-setTimeout(startSimulation, 1200);
+console.log("✅ Interactions V14.2 — multi-persona header typing + crowd reactions + joiner replies integrated.");
 
-console.log("✅ Interactions V14.4 — fully synced crowd reactions + joiners + typing + pills + timestamps.");
 })();
