@@ -1,4 +1,4 @@
-// interactions-v14.2-crowd-join-replies-multi-typing.js
+// interactions-v14.1-crowd-join-replies-typing-auto-hide.js
 (function(){
 
 'use strict';
@@ -8,7 +8,6 @@
 ===================================================== */
 const interactionQueue = [];
 let processingQueue = false;
-const activeTypers = new Set();
 
 function enqueueInteraction(interaction){
     if(!interaction || !interaction.persona || !interaction.text) return;
@@ -26,15 +25,16 @@ async function processQueue(){
 
         if(!persona || !text) continue;
 
-        // **Multi-persona header typing**
+        // **Header typing event**
         if(persona?.name){
-            activeTypers.add(persona.name);
-            document.dispatchEvent(new CustomEvent("headerTyping", { detail: { names: Array.from(activeTypers) } }));
+            const typingEvent = new CustomEvent("headerTyping", { detail: { name: persona.name } });
+            document.dispatchEvent(typingEvent);
 
+            // Auto-hide typing after duration
             const duration = window.TGRenderer?.calculateTypingDuration?.(text) || 1200;
             setTimeout(() => {
-                activeTypers.delete(persona.name);
-                document.dispatchEvent(new CustomEvent("headerTyping", { detail: { names: Array.from(activeTypers) } }));
+                const stopEvent = new CustomEvent("headerTypingStop", { detail: { name: persona.name } });
+                document.dispatchEvent(stopEvent);
             }, duration);
         }
 
@@ -47,6 +47,7 @@ async function processQueue(){
             opts.replyToText = parentText;
         }
 
+        // Append message via TGRenderer
         if(window.TGRenderer?.appendMessage){
             const msgId = window.TGRenderer.appendMessage(persona, text, opts);
             interaction._msgId = msgId;
@@ -179,6 +180,6 @@ function autoSimulate(){
 
 setTimeout(autoSimulate, 1200);
 
-console.log("✅ Interactions V14.2 — multi-persona header typing + crowd reactions + joiner replies integrated.");
+console.log("✅ Interactions V14.1 — crowd reactions + joiner replies + header typing auto-hide integrated.");
 
 })();
