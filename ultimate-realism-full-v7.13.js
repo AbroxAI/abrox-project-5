@@ -1,4 +1,4 @@
-// ultimate-realism-full-v7.13.js — Full Human-Like Multi-Turn Realism Engine
+// ultimate-realism-full-v7.13.js — Full Human-Like Multi-Turn Realism Engine (FIXED)
 (function(){
 'use strict';
 
@@ -39,66 +39,36 @@ const TESTIMONIALS = [
 "Consistent 5–10% daily growth","Doubled small account this week","Low drawdown strategy works",
 "Finally profitable after months","Swing trades hitting clean targets","Abrox nailed the breakout entry",
 "Risk management improved massively","Caught gold rally early","Crypto volatility handled perfectly",
-"London session was smooth today","NY open signals were sharp","Good for swing entries into trend",
-"Banked $600 this morning, Abrox is insane! 🚀",
-"I never miss a signal now, really smooth entries",
-"Just hit a clean scalp on BTC/USD, amazing bot!",
-"My small account doubled in 3 weeks using these signals",
-"Day trading stress is gone, I can finally plan my day",
-"Made consistent 2–5% gains every session this week",
-"Abrox bot never misses a trend, incredible accuracy!","My profits soared thanks to Abrox signals",
-"Abrox predicted a breakout perfectly today!","This bot makes trading feel effortless","Best bot I've used in years",
-"Abrox alerts saved me from multiple losses","I trust Abrox for every session now","My account growth accelerated with Abrox",
-"Abrox nailed the exact entry and exit points","Using Abrox is like having a personal trading mentor",
-"Every trade I made following Abrox was spot-on","Abrox turned my small account into consistent profits"
+"London session was smooth today","NY open signals were sharp","Good for swing entries into trend"
 ];
 
 const ADDITIONAL_TEMPLATES = [
 "Anyone else excited for the next signal?","I’m learning so much from this group!",
 "Can’t wait to apply this strategy today!","Does anyone track multiple signals at once?",
-"What’s your favorite broker for scalping?","I’m curious how others are using these strategies",
-"Does anyone do swing trades with Abrox?","Can someone share risk management tips?",
-"Watching gold closely today, any thoughts?","Thinking of hedging USD/JPY, any suggestions?"
+"What’s your favorite broker for scalping?","I’m curious how others are using these strategies"
 ];
 
 const ADMIN_TEMPLATES = [
 "Please contact admin for verification ✅","Follow the group rules before posting",
 "Welcome! Make sure to read the pinned messages","Admins will approve your access shortly",
-"Check announcements for updates 🔔","Reminder: only post verified signals ⚠️",
-"Keep discussions relevant, please!","Use the correct channels for trading questions"
+"Check announcements for updates 🔔"
 ];
 
 const NEW_MEMBER_QUESTIONS = [
 "How do I join the next signal?","Where can I find the trading guides?",
-"Can someone explain this strategy?","How do I verify my account?",
-"Which broker is recommended?","Do you provide a trading plan?",
-"How often are signals updated?","Is there a beginner-friendly guide?",
-"What’s the best way to start with a small account?","Are there crypto-only signals available?"
+"Can someone explain this strategy?","How do I verify my account?"
 ];
 
 const OLD_MEMBER_REPLIES = [
 "You can check the pinned messages for that","I’ve been using this strategy for months — it works",
-"Admin will approve you soon, don’t worry","Try this broker, it’s reliable",
-"Check the FAQ channel, everything is explained there","Check the daily signal channel for updates",
-"I recommend starting with small trades first","Follow the guide in the pinned messages",
-"The bot alerts are very reliable","Stick to the strategy for at least a week to see results"
+"Admin will approve you soon, don’t worry","Try this broker, it’s reliable"
 ];
 
 const REPLY_TEMPLATES = [
 "Yes, I agree!","Exactly 💯","Nice point 👍","I’ve been thinking the same.",
 "Can you elaborate?","Interesting 🤔","😂 That’s funny!","Absolutely 🚀",
-"Good catch!","Thanks for sharing 💡","Welcome aboard! 👋","Glad to be here!",
-"Excited to join the discussion!","I second that!","Love this insight!","True that!","Well explained 💯",
-"Interesting perspective","Couldn't agree more 👍","Spot on! 👌","I was just thinking the same",
-"Haha 😂 that’s true","Couldn’t agree more!","Nice execution today","Following this closely",
-"Great insight! 💡","Exactly what I needed","Thanks for sharing your results",
-...TESTIMONIALS, ...ADDITIONAL_TEMPLATES, ...ADMIN_TEMPLATES, ...NEW_MEMBER_QUESTIONS, ...OLD_MEMBER_REPLIES
+"Good catch!","Thanks for sharing 💡","Welcome aboard! 👋"
 ];
-
-const EMOJIS = ["💸","🔥","💯","✨","😎","👀","📈","🚀","💰","🤑","🎯","🏆","🤖","🎉","🍀","📊","⚡","💎","👑","🦄",
-"🧠","🔮","🪙","🥂","💡","🛸","📉","📱","💬","🙌","👏","👍","❤️","😂","😅","🤞","✌️","😴","🤩",
-"😬","🤝","🧾","📌","🔔","⚠️","✅","❌","📎","🧩","🔗","🔒","🌕","🌑","🌟","🏁","💹","🏦","🧭","🧯",
-"🧨","📣","💤","🕐","🕒","🕘","🕛","🕓","🧿","🎚️","📬","🎲","📡","🪄","🧰","🔭","🌊","🌪️","🌤️","🛰️"];
 
 /* =====================================================
    PERSONAS
@@ -114,9 +84,10 @@ const PERSONAS = [
 function getRandomPersona(){ return PERSONAS[Math.floor(Math.random()*PERSONAS.length)]; }
 
 /* =====================================================
-   HUMAN-TIMING
+   HUMAN TIMING
 ===================================================== */
 function randomDelay(min=1000,max=7000){ return min+Math.random()*(max-min); }
+
 function humanTypingDelay(text,persona){
   let base=400, perChar=25;
   if(persona.tone==="analytical") perChar=30;
@@ -135,155 +106,224 @@ const POOL = [];
 window.realismEngineFullPool = POOL;
 window.realismEngineV12Pool = POOL;
 
-function mark(text){ const fp=text.toLowerCase(); if(GENERATED.has(fp)) return false; GENERATED.add(fp); return true; }
-function generateTimestamp(lastTimestamp=new Date()){ return new Date(lastTimestamp.getTime()+5000+Math.random()*20000); }
+function mark(text){
+ const fp=text.toLowerCase();
+ if(GENERATED.has(fp)) return false;
+ GENERATED.add(fp);
+ return true;
+}
+
+function generateTimestamp(lastTimestamp=new Date()){
+ return new Date(lastTimestamp.getTime()+5000+Math.random()*20000);
+}
 
 function generateComment(persona,lastTimestamp=new Date()){
+
   let templates = [
     ()=>`Guys, ${REPLY_TEMPLATES[Math.floor(Math.random()*REPLY_TEMPLATES.length)]}`,
     ()=>`Anyone trading ${ASSETS[Math.floor(Math.random()*ASSETS.length)]} on ${BROKERS[Math.floor(Math.random()*BROKERS.length)]}?`,
-    ()=>`Signal for ${ASSETS[Math.floor(Math.random()*ASSETS.length)]} ${TIMEFRAMES[Math.floor(Math.random()*TIMEFRAMES.length)]} is ${RESULT_WORDS[Math.floor(Math.random()*RESULT_WORDS.length)]}`,
-    ()=>`${ADMIN_TEMPLATES[Math.floor(Math.random()*ADMIN_TEMPLATES.length)]}`,
+    ()=>`${OLD_MEMBER_REPLIES[Math.floor(Math.random()*OLD_MEMBER_REPLIES.length)]}`,
     ()=>`${NEW_MEMBER_QUESTIONS[Math.floor(Math.random()*NEW_MEMBER_QUESTIONS.length)]}`,
-    ()=>`${OLD_MEMBER_REPLIES[Math.floor(Math.random()*OLD_MEMBER_REPLIES.length)]}`
+    ()=>`${ADMIN_TEMPLATES[Math.floor(Math.random()*ADMIN_TEMPLATES.length)]}`
   ];
+
   let text = templates[Math.floor(Math.random()*templates.length)]();
+
   if(persona.tone==="sarcastic") text="😂 "+text;
   if(persona.tone==="analytical") text+=" 📊";
   if(persona.tone==="excited") text+=" 🚀";
-  if(Math.random()<0.35) text+=" — "+["good execution","tight stop","wide stop","no slippage","perfect timing","partial TP hit"][Math.floor(Math.random()*6)];
-  if(Math.random()<0.45) text+=" "+EMOJIS[Math.floor(Math.random()*EMOJIS.length)];
 
-  // Reactions, pills, jumpers, stickers
   let meta={};
-  if(Math.random()<0.5) meta.reaction=["👍","❤️","😂","💯","🚀"][Math.floor(Math.random()*5)];
-  if(Math.random()<0.3) meta.pill=["Admin","Bot Signal","Crypto Tip"][Math.floor(Math.random()*3)];
-  if(Math.random()<0.2) meta.jumper=["Jump to USD/JPY chart","Jump to BTC/USD signal"][Math.floor(Math.random()*2)];
-  if(Math.random()<0.15) meta.sticker=["🎯","🔥","💎","🚀"][Math.floor(Math.random()*4)];
+
+  if(Math.random()<0.5)
+    meta.reaction=["👍","❤️","😂","💯","🚀"][Math.floor(Math.random()*5)];
 
   persona.memory.push(text);
-  let tries=0; while(!mark(text)&&tries<30){ text+=" "+Math.floor(Math.random()*999); tries++; }
+
+  let tries=0;
+  while(!mark(text)&&tries<30){
+    text+=" "+Math.floor(Math.random()*999);
+    tries++;
+  }
+
   return { text, timestamp: generateTimestamp(lastTimestamp), persona, meta };
 }
 
 /* =====================================================
-   SESSION TRACKING
-===================================================== */
-const SESSIONS = PERSONAS.map(p=>({
-  persona:p,
-  active: Math.random()<0.7,
-  nextAction: Date.now()+randomDelay(5000,15000),
-  idleChance: 0.3+Math.random()*0.4
-}));
-
-function updateSessions(){
-  const now=Date.now();
-  SESSIONS.forEach(s=>{
-    if(now>=s.nextAction){
-      if(s.active){
-        const burst=1+Math.floor(Math.random()*3);
-        let lastTs=new Date();
-        for(let i=0;i<burst;i++){
-          const comment=generateComment(s.persona,lastTs);
-          enqueueInteraction(comment);
-          lastTs=comment.timestamp;
-        }
-        if(Math.random()<s.idleChance) s.active=false;
-        s.nextAction=now+randomDelay(20000,90000);
-      } else {
-        if(Math.random()<0.25) s.active=true;
-        s.nextAction=now+randomDelay(30000,120000);
-      }
-    }
-  });
-  setTimeout(updateSessions,1000);
-}
-setTimeout(updateSessions,1000);
-
-/* =====================================================
-   QUEUE + SIMULATION
+   QUEUE
 ===================================================== */
 const interactionQueue=[];
 let processingQueue=false;
-function enqueueInteraction(interaction){ if(!interaction||!interaction.persona||!interaction.text) return; interactionQueue.push(interaction); processQueue(); }
+
+function enqueueInteraction(interaction){
+ if(!interaction||!interaction.persona||!interaction.text) return;
+ interactionQueue.push(interaction);
+ processQueue();
+}
+
 async function processQueue(){
+
   if(processingQueue||interactionQueue.length===0) return;
+
   processingQueue=true;
+
   while(interactionQueue.length>0){
+
     const inter=interactionQueue.shift();
     const {persona,text,parentText,parentId,meta}=inter;
-    if(!persona||!text) continue;
+
     const opts={};
-    if(parentText||parentId){ opts.replyToId=parentId; opts.replyToText=parentText; }
-    if(meta){
-      if(meta.reaction) opts.reaction=meta.reaction;
-      if(meta.pill) opts.pill=meta.pill;
-      if(meta.jumper) opts.jumper=meta.jumper;
-      if(meta.sticker) opts.sticker=meta.sticker;
+
+    if(parentText||parentId){
+      opts.replyToId=parentId||null;
+      opts.replyToText=parentText||null;
     }
+
+    if(meta){
+
+      if(meta.reaction){
+        opts.reactions=[{
+          emoji:meta.reaction,
+          count:1+Math.floor(Math.random()*5)
+        }];
+      }
+
+    }
+
     if(window.TGRenderer?.appendMessage){
+
       const typing=humanTypingDelay(text,persona);
       await new Promise(r=>setTimeout(r,typing));
-      window.TGRenderer.appendMessage(persona,text,opts);
+
+      const id=window.TGRenderer.appendMessage(persona,text,opts);
+
+      inter.id=id;
     }
+
   }
+
   processingQueue=false;
+
 }
 
+/* =====================================================
+   AUTO SIMULATION
+===================================================== */
 function autoSimulate(lastTimestamp=new Date()){
-  if(!window.realismEngineV12Pool||window.realismEngineV12Pool.length===0) return;
+
   const persona=getRandomPersona();
   let randomComment=generateComment(persona,lastTimestamp);
+
   enqueueInteraction(randomComment);
 
-  if(Math.random()<0.25){
-    let clusterSize=1+Math.floor(Math.random()*3);
-    for(let i=1;i<clusterSize;i++){
-      let nextMsg=generateComment(persona,randomComment.timestamp);
-      nextMsg.timestamp=new Date(randomComment.timestamp.getTime()+500+Math.random()*1500);
-      enqueueInteraction(nextMsg);
-      randomComment.timestamp=nextMsg.timestamp;
+  /* JOIN STICKER EVENT */
+
+  if(Math.random()<0.08){
+    const joinCount=1+Math.floor(Math.random()*3);
+    const names=[];
+    for(let i=0;i<joinCount;i++){
+      names.push(getRandomPersona().name);
     }
+    window.TGRenderer?.appendJoinSticker(names);
   }
 
-  if(Math.random()<0.15){ const joiner=getRandomPersona(); simulateMultiTurnReply(joiner,randomComment); }
+  /* CLUSTERS */
+
+  if(Math.random()<0.25){
+
+    let clusterSize=1+Math.floor(Math.random()*3);
+
+    for(let i=1;i<clusterSize;i++){
+
+      let nextMsg=generateComment(persona,randomComment.timestamp);
+
+      if(Math.random()<0.4){
+        nextMsg.parentText=randomComment.text;
+        nextMsg.parentId=randomComment.id;
+      }
+
+      nextMsg.timestamp=new Date(
+        randomComment.timestamp.getTime()+500+Math.random()*1500
+      );
+
+      enqueueInteraction(nextMsg);
+
+      randomComment=nextMsg;
+
+    }
+
+  }
+
+  /* MULTI TURN REPLY */
+
+  if(Math.random()<0.15){
+    const joiner=getRandomPersona();
+    simulateMultiTurnReply(joiner,randomComment);
+  }
 
   const nextDelay=randomDelay(1500,6000);
+
   setTimeout(()=>autoSimulate(randomComment.timestamp),nextDelay);
+
 }
 
 /* =====================================================
-   MULTI-TURN REPLIES
+   MULTI TURN REPLIES
 ===================================================== */
 function simulateMultiTurnReply(joinerPersona,parentComment,depth=0){
-  if(depth>3) return;
-  let recent=joinerPersona.memory.slice(-5);
-  let replyText=NEW_MEMBER_QUESTIONS.some(q=>parentComment.text.includes(q))?
-    OLD_MEMBER_REPLIES.concat(ADMIN_TEMPLATES)[Math.floor(Math.random()* (OLD_MEMBER_REPLIES.length+ADMIN_TEMPLATES.length))]:
-    REPLY_TEMPLATES.concat(recent)[Math.floor(Math.random()* (REPLY_TEMPLATES.length+recent.length))];
 
-  const delay=randomDelay(2000,12000);
-  setTimeout(()=>{
-    enqueueInteraction({ persona: joinerPersona, text: replyText, parentText: parentComment.text, parentId: parentComment.id });
-    joinerPersona.memory.push(replyText);
-    if(Math.random()<0.3){ const followUp=getRandomPersona(); simulateMultiTurnReply(followUp,{ text: replyText, id: parentComment.id },depth+1); }
-  }, delay);
+ if(depth>3) return;
+
+ let replyText=REPLY_TEMPLATES[Math.floor(Math.random()*REPLY_TEMPLATES.length)];
+
+ const delay=randomDelay(2000,12000);
+
+ setTimeout(()=>{
+
+  enqueueInteraction({
+    persona:joinerPersona,
+    text:replyText,
+    parentText:parentComment.text,
+    parentId:parentComment.id||null
+  });
+
+  joinerPersona.memory.push(replyText);
+
+  if(Math.random()<0.3){
+    const followUp=getRandomPersona();
+    simulateMultiTurnReply(followUp,{
+      text:replyText,
+      id:parentComment.id
+    },depth+1);
+  }
+
+ },delay);
+
 }
 
 /* =====================================================
-   INIT POOL & START
+   INIT
 ===================================================== */
 function ensurePool(min=15000){
-  let ts=new Date();
-  while(POOL.length<min){
-    let persona=getRandomPersona();
-    let comment=generateComment(persona,ts);
-    POOL.push(comment);
-    ts=comment.timestamp;
-  }
+
+ let ts=new Date();
+
+ while(POOL.length<min){
+
+  let persona=getRandomPersona();
+  let comment=generateComment(persona,ts);
+
+  POOL.push(comment);
+  ts=comment.timestamp;
+
+ }
+
 }
+
 ensurePool();
+
 setTimeout(()=>autoSimulate(),1200);
 
-console.log("✅ Ultimate Realism Engine Full v7.13 — multi-turn, clusters, reactions, pills, jumpers, stickers, active/idle, full templates.");
+console.log("✅ Ultimate Realism Engine Full v7.13 — FIXED reactions, replies, clusters, join stickers.");
+
 })();
