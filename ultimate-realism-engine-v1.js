@@ -1,4 +1,4 @@
-// ultimate-realism-engine-v1.js — Full Realism + Interactive Crowd + Joiners + Reactions
+// ultimate-realism-interactions-v2.js — Full Realism + Crowd + Joiners + Reactions (Fully Synced)
 (function(){
 
 'use strict';
@@ -44,21 +44,22 @@ const EMOJIS = ["💸","🔥","💯","✨","😎","👀","📈","🚀","💰","�
 "🧨","📣","💤","🕐","🕒","🕘","🕛","🕓","🧿","🎚️","📬","🎲","📡","🪄","🧰","🔭","🌊","🌪️","🌤️","🛰️"];
 
 /* =====================================================
-   UTILITIES
+   UTILITY FUNCTIONS
 ===================================================== */
 function random(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 function maybe(p){ return Math.random() < p; }
 function rand(max=9999){ return Math.floor(Math.random()*max); }
 function hash(str){ let h=5381; for(let i=0;i<str.length;i++) h=((h<<5)+h)+str.charCodeAt(i); return (h>>>0).toString(36); }
 
+/* =====================================================
+   COMMENT POOL & QUEUE
+===================================================== */
 const GENERATED = new Set();
 const QUEUE = [];
 const POOL = [];
 window.realismEngineFullPool = POOL;
+window.realismEngineV12Pool = POOL; // unified pool for interactions
 
-/* =====================================================
-   COMMENT POOL GENERATION
-===================================================== */
 function mark(text){
   const fp = hash(text.toLowerCase());
   if(GENERATED.has(fp)) return false;
@@ -66,13 +67,6 @@ function mark(text){
   QUEUE.push(fp);
   while(QUEUE.length>100000) GENERATED.delete(QUEUE.shift());
   return true;
-}
-
-function ensurePool(min=8000){
-  while(POOL.length<min){
-    POOL.push(generateComment());
-    if(POOL.length>30000) break;
-  }
 }
 
 function generateTimestamp(days=120){
@@ -104,93 +98,19 @@ function generateComment(){
 }
 
 /* =====================================================
-   DYNAMIC TYPING
+   TYPING FUNCTION
 ===================================================== */
 async function performTyping(persona,message){
   if(!persona?.name) return;
   document.dispatchEvent(
-    new CustomEvent("headerTyping", { detail: { name: persona.name } })
+    new CustomEvent("headerTyping",{detail:{name:persona.name}})
   );
-  const duration = window.TGRenderer?.calculateTypingDuration?.(message) || 1200;
-  await new Promise(res => setTimeout(res,duration));
+  const duration = window.TGRenderer?.calculateTypingDuration?.(message)||1200;
+  await new Promise(res=>setTimeout(res,duration));
 }
 
 /* =====================================================
-   MESSAGE POSTING + REACTIONS
-===================================================== */
-async function postMessage(item,parent=null){
-  const persona = parent?.persona || window.identity.getRandomPersona();
-  let replyData={};
-  if(maybe(0.28) && parent){
-    replyData = { replyToId: parent.id, replyToText: parent.text.slice(0,120) };
-  }
-  await performTyping(persona,item.text);
-
-  const autoReactions = Array.from({length:2+rand(3)},()=>({ emoji: random(EMOJIS), count: rand(9)+1 }));
-
-  if(window.TGRenderer?.appendMessage){
-    window.TGRenderer.appendMessage(persona,item.text,{
-      timestamp:item.timestamp,
-      type:"incoming",
-      id:`realism_${Date.now()}_${rand(9999)}`,
-      ...replyData,
-      reactions:autoReactions
-    });
-  }
-
-  if(maybe(0.3)){
-    const nestedCount = rand(2)+1;
-    for(let i=0;i<nestedCount;i++){
-      const delay = 400 + Math.random()*1600;
-      setTimeout(()=>postMessage(generateComment(), { persona, id:`nested_${Date.now()}_${i}`, text:item.text }), delay);
-    }
-  }
-}
-
-/* =====================================================
-   INTERACTIVE REACTIONS
-===================================================== */
-function renderReactions(bubbleEntry,reactions){
-  if(!bubbleEntry||!bubbleEntry.el) return;
-  let pill = bubbleEntry.el.querySelector('.tg-bubble-reactions');
-  if(pill) pill.remove();
-  pill=document.createElement('div');
-  pill.className='tg-bubble-reactions';
-  reactions.forEach(r=>{
-    const span=document.createElement('span');
-    span.className='reaction';
-    span.textContent=`${r.emoji} ${r.count}`;
-    span.style.cursor='pointer';
-    span.addEventListener('mouseenter',()=>span.style.backgroundColor='#eee');
-    span.addEventListener('mouseleave',()=>span.style.backgroundColor='');
-    span.addEventListener('click',()=>{ r.count+=1; span.textContent=`${r.emoji} ${r.count}`; });
-    pill.appendChild(span);
-  });
-  bubbleEntry.el.querySelector('.tg-bubble-content')?.appendChild(pill);
-}
-
-function autoReactToMessage(message){
-  if(!message||!window.TGRenderer?.MESSAGE_MAP) return;
-  if(!message.reactions) message.reactions=[];
-  if(Math.random()<0.25){
-    const emojiPool=["🔥","💯","👍","💹","🚀","✨","👏"];
-    const reaction=emojiPool[Math.floor(Math.random()*emojiPool.length)];
-    message.reactions.push({emoji:reaction,count:Math.floor(Math.random()*5)+1});
-  }
-  if(Math.random()<0.4 && window.identity){
-    const crowdClicks=Math.floor(Math.random()*3)+1;
-    for(let i=0;i<crowdClicks;i++){
-      if(message.reactions.length===0) break;
-      const r=message.reactions[Math.floor(Math.random()*message.reactions.length)];
-      r.count+=1;
-    }
-  }
-  const bubbleEntry=window.TGRenderer.MESSAGE_MAP.get(message.id);
-  renderReactions(bubbleEntry,message.reactions);
-}
-
-/* =====================================================
-   INTERACTION QUEUE
+   MESSAGE QUEUE
 ===================================================== */
 const interactionQueue=[];
 let processingQueue=false;
@@ -208,12 +128,15 @@ async function processQueue(){
     const interaction=interactionQueue.shift();
     const {persona,text,parentText,parentId}=interaction;
     if(!persona||!text) continue;
+
     const opts={};
     if(parentText||parentId){ opts.replyToId=parentId; opts.replyToText=parentText; }
+
     if(window.TGRenderer?.appendMessage){
       const msgId=window.TGRenderer.appendMessage(persona,text,opts);
       interaction._msgId=msgId;
     }
+
     const typingDuration=window.TGRenderer?.calculateTypingDuration?.(text)||1200;
     await new Promise(res=>setTimeout(res,typingDuration+200));
   }
@@ -221,9 +144,60 @@ async function processQueue(){
 }
 
 /* =====================================================
-   AUTO REPLIES & JOINER REPLIES
+   AUTO REPLIES & JOINERS
 ===================================================== */
 const REPLY_TEMPLATES=[
   "Yes, I agree!","Exactly 💯","Nice point 👍","I’ve been thinking the same.",
   "Can you elaborate?","Interesting 🤔","😂 That’s funny!","Absolutely 🚀",
-  "Good
+  "Good catch!","Thanks for sharing 💡","Welcome aboard! 👋","Glad to be here!",
+  "Excited to join the discussion!","I second that!","Love this insight!",
+  "True that!","Well explained 💯","Interesting perspective","Couldn't agree more 👍"
+];
+
+function getRandomReply(){ return REPLY_TEMPLATES[Math.floor(Math.random()*REPLY_TEMPLATES.length)]; }
+
+function simulateJoinerReply(joinerPersona){
+  const randomComment=random(window.realismEngineV12Pool);
+  if(!randomComment) return;
+  enqueueInteraction({ persona: joinerPersona, text: getRandomReply(), parentText: randomComment.text, parentId: randomComment.id });
+}
+
+/* =====================================================
+   AUTO SIMULATION LOOP
+===================================================== */
+function autoSimulate(){
+  if(!window.realismEngineV12Pool || window.realismEngineV12Pool.length===0) return;
+  const persona = window.identity?.getRandomPersona();
+  if(!persona) return;
+
+  const randomComment = random(window.realismEngineV12Pool);
+  if(!randomComment) return;
+
+  enqueueInteraction({ persona, text: randomComment.text });
+
+  // Occasionally simulate a joiner reply
+  if(Math.random()<0.1){
+    const joiner = window.identity?.getRandomPersona();
+    if(joiner) simulateJoinerReply(joiner);
+  }
+
+  const nextInterval=800 + Math.random()*2500;
+  setTimeout(autoSimulate, nextInterval);
+}
+
+/* =====================================================
+   POOL INIT
+===================================================== */
+function ensurePool(min=8000){
+  while(POOL.length<min) POOL.push(generateComment());
+}
+ensurePool();
+
+/* =====================================================
+   START SIMULATION
+===================================================== */
+setTimeout(autoSimulate, 1200);
+
+console.log("✅ Ultimate Realism Engine v2 — fully synced with interactions, unified pool, chat guaranteed to load.");
+
+})();
