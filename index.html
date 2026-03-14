@@ -81,22 +81,34 @@
   <!-- Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- Scripts (load in order) -->
+  <!-- Scripts (load in correct order) -->
   <script src="identity-personas.js"></script>
   <script src="bubble-renderer-fixed-v2.js"></script>
   <script src="ultimate-realism-full-v7.13.js"></script>
-  <script src="interactions-v14.1-full.js"></script>
+  <script src="interactions-v14.1-crowd-join-replies-typing-auto-hide.js"></script>
   <script src="app-fixed.js"></script>
 
-  <!-- Initialize icons and enforce input lock -->
+  <!-- Initialization + Safety Checks -->
   <script>
-    if(window.lucide?.createIcons){ window.lucide.createIcons(); }
-
     document.addEventListener('DOMContentLoaded', () => {
-      // Lock input bar
-      if (window.TGRenderer?.lockInput) window.TGRenderer.lockInput();
+      // Initialize icons
+      if(window.lucide?.createIcons){ window.lucide.createIcons(); }
 
-      // Optionally log typing events
+      // Ensure TGRenderer exists
+      if(!window.TGRenderer){
+        console.error("TGRenderer not loaded yet.");
+        return;
+      }
+
+      // Lock input
+      const inputBar = document.getElementById('tg-input-bar');
+      if(inputBar) inputBar.classList.add('locked');
+
+      // Add a test message to verify chat loads
+      const testPersona = { name: "System Test", avatar: "https://via.placeholder.com/40", isAdmin: true };
+      window.TGRenderer.appendMessage(testPersona, "✅ Chat system initialized and ready!");
+
+      // Optional: listen to header typing
       document.addEventListener('headerTyping', (e) => {
         console.log(e.detail.name + " is typing…");
       });
