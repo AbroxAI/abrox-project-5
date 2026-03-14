@@ -1,4 +1,4 @@
-// interactions-v11-full-sync.js — Full interaction manager (auto-replies, reactions, queued typing)
+// interactions-v14.2-crowd-join-replies.js — Crowd-reacting pills + joiner replies with extended replies
 (function(){
 
 'use strict';
@@ -25,14 +25,15 @@ async function processQueue(){
 
         if(!persona || !text) continue;
 
+        const opts = {};
         if(parentText || parentId){
-            document.dispatchEvent(new CustomEvent('autoReply', {
-                detail: { persona, text, parentText, parentId }
-            }));
-        } else {
-            document.dispatchEvent(new CustomEvent('autoReply', {
-                detail: { persona, text }
-            }));
+            opts.replyToId = parentId;
+            opts.replyToText = parentText;
+        }
+
+        if(window.TGRenderer?.appendMessage){
+            const msgId = window.TGRenderer.appendMessage(persona, text, opts);
+            interaction._msgId = msgId;
         }
 
         const typingDuration = window.TGRenderer?.calculateTypingDuration?.(text) || 1200;
@@ -43,7 +44,7 @@ async function processQueue(){
 }
 
 /* =====================================================
-   RANDOM AUTO-REPLIES
+   RANDOM AUTO-REPLIES (EXTENDED)
 ===================================================== */
 const REPLY_TEMPLATES = [
     "Yes, I agree!",
@@ -55,7 +56,56 @@ const REPLY_TEMPLATES = [
     "😂 That’s funny!",
     "Absolutely 🚀",
     "Good catch!",
-    "Thanks for sharing 💡"
+    "Thanks for sharing 💡",
+    "Welcome aboard! 👋",
+    "Glad to be here!",
+    "Excited to join the discussion!",
+    "Count me in!",
+    "Looking forward to this!",
+    "Great insight!",
+    "Love this perspective!",
+    "Couldn’t agree more 😎",
+    "This is really helpful!",
+    "I’ve noticed the same",
+    "Following closely 👀",
+    "Interesting take!",
+    "I’ll try that approach",
+    "Haha, that’s hilarious 😂",
+    "Well spotted!",
+    "Thanks for pointing that out 💡",
+    "Perfect timing!",
+    "Exactly what I was thinking",
+    "Appreciate the clarification 👍",
+    "That’s a solid observation 👏",
+    "I can relate to this",
+    "Definitely worth considering",
+    "Adding this to my notes 📝",
+    "Glad to learn this!",
+    "I was wondering the same thing",
+    "Super insightful 🚀",
+    "Love the energy here 🔥",
+    "This explains a lot",
+    "So true! 💯",
+    "I need to remember this",
+    "Noted, thanks!",
+    "This makes sense",
+    "Interesting approach",
+    "I’ll keep an eye on that 👀",
+    "Valuable contribution 💎",
+    "Amazing point!",
+    "Thanks for sharing your experience",
+    "This is next-level stuff",
+    "I like this perspective 👍",
+    "Very well explained",
+    "Totally resonates with me",
+    "Good to know!",
+    "That’s quite useful",
+    "Wow, didn’t think of that",
+    "Agree completely",
+    "Appreciate the insight",
+    "Excellent example",
+    "Brilliant explanation 💡",
+    "I’ve learned something new today"
 ];
 
 function getRandomReply(){
@@ -63,24 +113,72 @@ function getRandomReply(){
 }
 
 /* =====================================================
-   AUTO-TRIGGER SIMULATION
+   REACTION PILL HANDLER
 ===================================================== */
-function simulateInteraction(persona, parentMessage){
-    const text = getRandomReply();
-    enqueueInteraction({ persona, text, parentText: parentMessage?.text, parentId: parentMessage?.id });
+function renderReactions(bubbleEntry, reactions){
+    if(!bubbleEntry || !bubbleEntry.el) return;
+
+    let pill = bubbleEntry.el.querySelector('.tg-bubble-reactions');
+    if(pill) pill.remove();
+
+    pill = document.createElement('div');
+    pill.className = 'tg-bubble-reactions';
+
+    reactions.forEach(r => {
+        const span = document.createElement('span');
+        span.className = 'reaction';
+        span.textContent = `${r.emoji} ${r.count}`;
+        span.style.cursor = 'pointer';
+
+        span.addEventListener('mouseenter', () => span.style.backgroundColor = '#eee');
+        span.addEventListener('mouseleave', () => span.style.backgroundColor = '');
+
+        span.addEventListener('click', () => {
+            r.count += 1;
+            span.textContent = `${r.emoji} ${r.count}`;
+        });
+
+        pill.appendChild(span);
+    });
+
+    bubbleEntry.el.querySelector('.tg-bubble-content')?.appendChild(pill);
 }
 
 /* =====================================================
-   AUTO-REACTION TRIGGERS
+   AUTO-REACTION TRIGGERS + CROWD SIMULATION
 ===================================================== */
 function autoReactToMessage(message){
-    if(!message || !window.TGRenderer?.appendMessage) return;
-    if(Math.random()<0.25){ // 25% chance to add reaction
+    if(!message || !window.TGRenderer?.MESSAGE_MAP) return;
+
+    if(!message.reactions) message.reactions = [];
+
+    if(Math.random()<0.25){
         const emojiPool = ["🔥","💯","👍","💹","🚀","✨","👏"];
         const reaction = emojiPool[Math.floor(Math.random()*emojiPool.length)];
-        if(!message.reactions) message.reactions=[];
         message.reactions.push({ emoji: reaction, count: Math.floor(Math.random()*5)+1 });
     }
+
+    if(Math.random()<0.4 && window.identity){
+        const crowdClicks = Math.floor(Math.random()*3)+1;
+        for(let i=0;i<crowdClicks;i++){
+            if(message.reactions.length===0) break;
+            const r = message.reactions[Math.floor(Math.random()*message.reactions.length)];
+            r.count += 1;
+        }
+    }
+
+    const bubbleEntry = window.TGRenderer.MESSAGE_MAP.get(message.id);
+    renderReactions(bubbleEntry, message.reactions);
+}
+
+/* =====================================================
+   JOINER REPLIES
+===================================================== */
+function simulateJoinerReply(joinerPersona){
+    const text = getRandomReply();
+    const randomComment = window.realismEngineV12Pool[Math.floor(Math.random()*window.realismEngineV12Pool.length)];
+    enqueueInteraction({ persona: joinerPersona, text, parentText: randomComment?.text, parentId: randomComment?.id });
+    autoReactToMessage(randomComment);
 }
 
 /* =====================================================
@@ -88,8 +186,13 @@ function autoReactToMessage(message){
 ===================================================== */
 window.interactions = {
     enqueue: enqueueInteraction,
-    simulateReply: simulateInteraction,
-    react: autoReactToMessage
+    simulateReply: function(persona, parentMessage){
+        const text = getRandomReply();
+        enqueueInteraction({ persona, text, parentText: parentMessage?.text, parentId: parentMessage?.id });
+        autoReactToMessage(parentMessage);
+    },
+    react: autoReactToMessage,
+    joinReply: simulateJoinerReply
 };
 
 /* =====================================================
@@ -103,7 +206,12 @@ function autoSimulate(){
     const randomComment = window.realismEngineV12Pool[Math.floor(Math.random()*window.realismEngineV12Pool.length)];
     if(!randomComment) return;
 
-    simulateInteraction(persona, randomComment);
+    window.interactions.simulateReply(persona, randomComment);
+
+    if(Math.random()<0.08){
+        const joiner = window.identity?.getRandomPersona();
+        if(joiner) window.interactions.joinReply(joiner);
+    }
 
     const nextInterval = 800 + Math.random()*2500;
     setTimeout(autoSimulate, nextInterval);
@@ -111,6 +219,6 @@ function autoSimulate(){
 
 setTimeout(autoSimulate, 1200);
 
-console.log("✅ Interactions V11 Full Sync — auto-replies, reactions, and queue enabled.");
+console.log("✅ Interactions V14.2 — crowd reactions + joiner replies with extended reply pool fully integrated.");
 
 })();
