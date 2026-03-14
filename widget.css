@@ -432,7 +432,7 @@ html, body {
 .tg-send-btn.hidden { display: none; }
 
 /* =========================
-   JOIN STICKER (Telegram 2026 style, merged)
+   JOIN STICKER (Telegram 2026 style — names only)
 ========================= */
 .tg-join-sticker {
   display: inline-flex;
