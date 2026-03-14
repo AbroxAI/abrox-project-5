@@ -1,4 +1,4 @@
-// interactions-v14.1-crowd-join-replies-typing-auto-hide.js — Crowd reactions + joiners + header typing
+// interactions-v14.1-full.js — Crowd reactions + joiners + typing + auto-hide + realism sync
 (function(){
 
 'use strict';
@@ -21,10 +21,10 @@ async function processQueue(){
 
     while(interactionQueue.length>0){
         const interaction = interactionQueue.shift();
-        const { persona, text, parentText, parentId } = interaction;
+        const { persona, text, parentText, parentId, meta } = interaction;
         if(!persona || !text) continue;
 
-        // **Header typing event**
+        // Header typing event
         if(persona?.name){
             const typingEvent = new CustomEvent("headerTyping", { detail: { name: persona.name } });
             document.dispatchEvent(typingEvent);
@@ -37,6 +37,7 @@ async function processQueue(){
             }, duration);
         }
 
+        // Human typing delay
         const typingDuration = window.TGRenderer?.calculateTypingDuration?.(text) || 1200;
         await new Promise(res => setTimeout(res, typingDuration + 200));
 
@@ -46,7 +47,15 @@ async function processQueue(){
             opts.replyToText = parentText;
         }
 
-        // Append message via TGRenderer
+        // Meta data: reactions, pills, jumpers, stickers
+        if(meta){
+            if(meta.reaction) opts.reaction = meta.reaction;
+            if(meta.pill) opts.pill = meta.pill;
+            if(meta.jumper) opts.jumper = meta.jumper;
+            if(meta.sticker) opts.sticker = meta.sticker;
+        }
+
+        // Append message
         if(window.TGRenderer?.appendMessage){
             const msgId = window.TGRenderer.appendMessage(persona, text, opts);
             interaction._msgId = msgId;
@@ -57,7 +66,7 @@ async function processQueue(){
 }
 
 /* =====================================================
-   RANDOM AUTO-REPLIES
+   REPLY TEMPLATES
 ===================================================== */
 const REPLY_TEMPLATES = [
     "Yes, I agree!","Exactly 💯","Nice point 👍","I’ve been thinking the same.",
@@ -161,16 +170,14 @@ window.interactions = {
 ===================================================== */
 function autoSimulate(){
     if(!window.realismEngineV12Pool || window.realismEngineV12Pool.length===0) return;
-    const persona = window.identity?.getRandomPersona();
-    if(!persona) return;
-
+    const persona = window.identity?.getRandomPersona() || { name: "Guest" };
     const randomComment = window.realismEngineV12Pool[Math.floor(Math.random()*window.realismEngineV12Pool.length)];
     if(!randomComment) return;
 
     window.interactions.simulateReply(persona, randomComment);
 
     // Occasionally simulate a joiner reply
-    if(Math.random() < 0.1){ // 10% chance per loop
+    if(Math.random() < 0.1){
         const joiner = window.identity?.getRandomPersona();
         if(joiner) window.interactions.joinReply(joiner);
     }
@@ -181,6 +188,6 @@ function autoSimulate(){
 
 setTimeout(autoSimulate, 1200);
 
-console.log("✅ Interactions v14.1 — crowd reactions + joiner replies + header typing auto-hide integrated.");
+console.log("✅ Interactions v14.1 FULL — crowd reactions, joiners, header typing, fully synced with realism engine.");
 
 })();
