@@ -1,4 +1,4 @@
-// interactions-v14.2-full-realtime.js — Crowd + joiners + live reactions
+// interactions-v14.3-crowd-join-replies.js — Fully live crowd reactions + joiners + header typing
 (function(){
 
 'use strict';
@@ -31,30 +31,38 @@ async function processQueue(){
             opts.replyToText = parentText;
         }
 
+        // HEADER TYPING
+        await performTyping(persona, text);
+
+        // Append message via TGRenderer
         if(window.TGRenderer?.appendMessage){
             const msgId = window.TGRenderer.appendMessage(persona, text, opts);
             interaction._msgId = msgId;
         }
-
-        // Simulate typing duration
-        const duration = window.TGRenderer?.calculateTypingDuration?.(text) || 1200;
-        await new Promise(res => setTimeout(res, duration + 200));
     }
 
     processingQueue = false;
 }
 
 /* =====================================================
-   RANDOM AUTO-REPLIES / JOINER MESSAGES
+   HEADER TYPING
+===================================================== */
+async function performTyping(persona, message){
+    if(!persona?.name) return;
+    document.dispatchEvent(new CustomEvent("headerTyping", { detail: { name: persona.name } }));
+    const duration = window.TGRenderer?.calculateTypingDuration?.(message) || 1200;
+    await new Promise(res => setTimeout(res, duration));
+}
+
+/* =====================================================
+   RANDOM AUTO-REPLIES
 ===================================================== */
 const REPLY_TEMPLATES = [
-    "Yes, I agree!", "Exactly 💯", "Nice point 👍", "I’ve been thinking the same.",
-    "Can you elaborate?", "Interesting 🤔", "😂 That’s funny!", "Absolutely 🚀",
-    "Good catch!", "Thanks for sharing 💡", "Welcome aboard! 👋",
-    "Glad to be here!", "Excited to join the discussion!", "Looking forward to more updates!",
-    "This is interesting!", "Agreed with the last point", "Haha, spot on!", "Totally makes sense",
-    "I was just thinking the same", "Nice analysis!", "Good strategy insight!", "Well explained!",
-    "Excited to see the results!", "Following along 👀", "Great discussion so far!"
+    "Yes, I agree!","Exactly 💯","Nice point 👍","I’ve been thinking the same.",
+    "Can you elaborate?","Interesting 🤔","😂 That’s funny!","Absolutely 🚀",
+    "Good catch!","Thanks for sharing 💡","Welcome aboard! 👋","Glad to be here!",
+    "Excited to join the discussion!","Love this insight 💡","Spot on!","Totally agree 👍",
+    "Interesting perspective 🤔","Can't wait to try this","Great call 🚀"
 ];
 
 function getRandomReply(){
@@ -81,6 +89,8 @@ function renderReactions(bubbleEntry, reactions){
 
         span.addEventListener('mouseenter', () => span.style.backgroundColor = '#eee');
         span.addEventListener('mouseleave', () => span.style.backgroundColor = '');
+
+        // Increment count on click
         span.addEventListener('click', () => {
             r.count += 1;
             span.textContent = `${r.emoji} ${r.count}`;
@@ -93,24 +103,25 @@ function renderReactions(bubbleEntry, reactions){
 }
 
 /* =====================================================
-   AUTO-REACTION TRIGGERS + CROWD SIMULATION
+   AUTO-REACTION + CROWD SIMULATION
 ===================================================== */
 function autoReactToMessage(message){
     if(!message || !window.TGRenderer?.MESSAGE_MAP) return;
 
     if(!message.reactions) message.reactions = [];
 
-    // Base 25% chance for random reaction
-    if(Math.random() < 0.25){
-        const emojis = ["🔥","💯","👍","💹","🚀","✨","👏"];
-        message.reactions.push({ emoji: emojis[Math.floor(Math.random()*emojis.length)], count: Math.floor(Math.random()*5)+1 });
+    // Base random reaction 25%
+    if(Math.random()<0.25){
+        const emojiPool = ["🔥","💯","👍","💹","🚀","✨","👏"];
+        const reaction = emojiPool[Math.floor(Math.random()*emojiPool.length)];
+        message.reactions.push({ emoji: reaction, count: Math.floor(Math.random()*5)+1 });
     }
 
-    // Crowd simulation
-    if(Math.random() < 0.5 && window.identity){
-        const extraClicks = Math.floor(Math.random()*3)+1;
-        for(let i=0;i<extraClicks;i++){
-            if(message.reactions.length === 0) break;
+    // Crowd clicks 1–3 times randomly
+    if(Math.random()<0.4 && window.identity){
+        const crowdClicks = Math.floor(Math.random()*3)+1;
+        for(let i=0;i<crowdClicks;i++){
+            if(message.reactions.length===0) break;
             const r = message.reactions[Math.floor(Math.random()*message.reactions.length)];
             r.count += 1;
         }
@@ -124,14 +135,19 @@ function autoReactToMessage(message){
    JOINER REPLIES
 ===================================================== */
 function simulateJoinerReply(joinerPersona){
-    const text = getRandomReply();
-    // Get a random existing comment to reply to
+    const text = getRandomReply(); 
     let randomComment = null;
     if(window.realismEngineV12Pool?.length > 0){
         randomComment = window.realismEngineV12Pool[Math.floor(Math.random()*window.realismEngineV12Pool.length)];
     }
+
     enqueueInteraction({ persona: joinerPersona, text, parentText: randomComment?.text, parentId: randomComment?.id });
     if(randomComment) autoReactToMessage(randomComment);
+
+    // Append joiner visually
+    if(window.TGRenderer?.appendJoinSticker){
+        window.TGRenderer.appendJoinSticker([joinerPersona.name]);
+    }
 }
 
 /* =====================================================
@@ -142,29 +158,17 @@ window.interactions = {
     simulateReply: function(persona, parentMessage){
         const text = getRandomReply();
         enqueueInteraction({ persona, text, parentText: parentMessage?.text, parentId: parentMessage?.id });
-        if(parentMessage) autoReactToMessage(parentMessage);
+        autoReactToMessage(parentMessage);
     },
     react: autoReactToMessage,
     joinReply: simulateJoinerReply
 };
 
 /* =====================================================
-   POOL MANAGEMENT
-===================================================== */
-function ensurePoolFull(min=100){
-    if(!window.realismEngineV12Pool) window.realismEngineV12Pool = [];
-    while(window.realismEngineV12Pool.length < min){
-        const comment = { text: getRandomReply(), id: `pool_${Date.now()}_${Math.floor(Math.random()*9999)}` };
-        window.realismEngineV12Pool.push(comment);
-    }
-}
-
-/* =====================================================
    AUTO SIMULATION LOOP
 ===================================================== */
 function autoSimulate(){
-    ensurePoolFull(100);
-
+    if(!window.realismEngineV12Pool || window.realismEngineV12Pool.length===0) return;
     const persona = window.identity?.getRandomPersona();
     if(!persona) return;
 
@@ -174,17 +178,17 @@ function autoSimulate(){
     window.interactions.simulateReply(persona, randomComment);
 
     // Occasionally simulate a joiner reply
-    if(Math.random() < 0.1){
+    if(Math.random()<0.08){ 
         const joiner = window.identity?.getRandomPersona();
         if(joiner) window.interactions.joinReply(joiner);
     }
 
-    const nextInterval = 800 + Math.random()*2000;
+    const nextInterval = 800 + Math.random()*2500;
     setTimeout(autoSimulate, nextInterval);
 }
 
 setTimeout(autoSimulate, 1200);
 
-console.log("✅ Interactions V14.2 — continuous crowd + joiners + live reactions fully synced.");
+console.log("✅ Interactions V14.3 — fully live: header typing, reactions, and joiners visible.");
 
 })();
