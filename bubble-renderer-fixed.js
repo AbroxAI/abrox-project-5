@@ -1,4 +1,4 @@
-// bubble-renderer-fixed.js — FINAL CLEAN (Header-only typing architecture)
+// bubble-renderer-fixed-v2.js — FINAL CLEAN + JOIN STICKERS + REACTION PILLS
 (function () {
 'use strict';
 
@@ -78,6 +78,7 @@ function init() {
     const replyToText = opts.replyToText || null;
     const image = opts.image || null;
     const caption = opts.caption || null;
+    const reactions = opts.reactions || []; // array of {emoji, count}
 
     insertDateSticker(timestamp);
 
@@ -165,6 +166,19 @@ function init() {
       if (caption) PINNED_MESSAGE_ID = id;
     }
 
+    /* Reaction pill */
+    if (reactions.length) {
+      const pill = document.createElement('div');
+      pill.className = 'tg-bubble-reactions';
+      reactions.forEach(r => {
+        const span = document.createElement('span');
+        span.className = 'reaction';
+        span.textContent = `${r.emoji} ${r.count}`;
+        pill.appendChild(span);
+      });
+      content.appendChild(pill);
+    }
+
     /* Admin button */
     if (persona?.isAdmin) {
       const adminBtn = document.createElement('a');
@@ -204,6 +218,27 @@ function init() {
     });
 
     return { el: wrapper, id };
+  }
+
+  /* =====================================================
+     JOIN STICKER
+  ===================================================== */
+  function appendJoinSticker(names) {
+    if (!names || !names.length) return;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'tg-join-sticker';
+
+    const textEl = document.createElement('div');
+    textEl.className = 'tg-join-text';
+    textEl.textContent = names.length > 3
+      ? `${names.slice(0,3).join(', ')} & ${names.length-3} others joined the chat`
+      : `${names.join(', ')} joined the chat`;
+
+    wrapper.appendChild(textEl);
+    container.appendChild(wrapper);
+
+    container.scrollTop = container.scrollHeight;
   }
 
   /* =====================================================
@@ -289,11 +324,12 @@ function init() {
   ===================================================== */
   window.TGRenderer = {
     appendMessage,
+    appendJoinSticker,
     getPinnedMessageId: () => PINNED_MESSAGE_ID,
     calculateTypingDuration
   };
 
-  console.log('✅ bubble-renderer FINAL — header-only architecture, no chat typing system.');
+  console.log('✅ bubble-renderer FINAL V2 — JOIN STICKERS + REACTIONS integrated.');
 }
 
 document.readyState === 'loading'
