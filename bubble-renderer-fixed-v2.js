@@ -181,7 +181,7 @@ function init() {
   }
 
   /* =====================================================
-     JOIN STICKER (MERGED)
+     JOIN STICKER (MERGED NAMES ONLY)
   ===================================================== */
   function appendJoinSticker(names) {
     if (!names || !names.length) return;
