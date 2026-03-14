@@ -1,4 +1,4 @@
-// interactions-v14.1-crowd-join-replies-typing-auto-hide.js
+// interactions-v14.1-crowd-join-replies-typing-auto-hide.js — Crowd reactions + joiners + header typing
 (function(){
 
 'use strict';
@@ -22,7 +22,6 @@ async function processQueue(){
     while(interactionQueue.length>0){
         const interaction = interactionQueue.shift();
         const { persona, text, parentText, parentId } = interaction;
-
         if(!persona || !text) continue;
 
         // **Header typing event**
@@ -108,12 +107,14 @@ function autoReactToMessage(message){
     if(!message || !window.TGRenderer?.MESSAGE_MAP) return;
     if(!message.reactions) message.reactions = [];
 
+    // Base 25% chance random reaction
     if(Math.random() < 0.25){
         const emojiPool = ["🔥","💯","👍","💹","🚀","✨","👏"];
         const reaction = emojiPool[Math.floor(Math.random()*emojiPool.length)];
         message.reactions.push({ emoji: reaction, count: Math.floor(Math.random()*5)+1 });
     }
 
+    // Crowd simulation: random other personas react
     if(Math.random() < 0.4 && window.identity){
         const crowdClicks = Math.floor(Math.random()*3)+1;
         for(let i=0; i<crowdClicks; i++){
@@ -169,7 +170,7 @@ function autoSimulate(){
     window.interactions.simulateReply(persona, randomComment);
 
     // Occasionally simulate a joiner reply
-    if(Math.random() < 0.1){
+    if(Math.random() < 0.1){ // 10% chance per loop
         const joiner = window.identity?.getRandomPersona();
         if(joiner) window.interactions.joinReply(joiner);
     }
@@ -180,6 +181,6 @@ function autoSimulate(){
 
 setTimeout(autoSimulate, 1200);
 
-console.log("✅ Interactions V14.1 — crowd reactions + joiner replies + header typing auto-hide integrated.");
+console.log("✅ Interactions v14.1 — crowd reactions + joiner replies + header typing auto-hide integrated.");
 
 })();
