@@ -259,13 +259,43 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* =====================================================
      START REALISM ENGINE
+     (Join sticker names-only fix integrated globally)
   ===================================================== */
   if (window.realism?.simulate) {
     setTimeout(() => {
       window.realism.simulate();
+
+      // Ensure join stickers are names-only
+      if (window.TGRenderer) {
+        const originalAppendJoin = window.TGRenderer.appendJoinSticker;
+        window.TGRenderer.appendJoinSticker = function(names) {
+          if (!names || names.length === 0) return;
+          // Merge names only
+          const container = document.getElementById("tg-comments-container");
+          const lastSticker = container?.querySelector(".tg-join-sticker:last-of-type");
+          if (lastSticker) lastSticker.remove();
+
+          const wrapper = document.createElement("div");
+          wrapper.className = "tg-join-sticker";
+
+          const textEl = document.createElement("div");
+          textEl.className = "tg-join-text";
+          textEl.textContent = names.length > 3
+            ? `${names.slice(0,3).join(", ")} & ${names.length-3} others joined the chat`
+            : `${names.join(", ")} joined the chat`;
+
+          wrapper.appendChild(textEl);
+          container?.appendChild(wrapper);
+
+          // Auto-scroll if near bottom
+          const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 80;
+          if (atBottom) container.scrollTop = container.scrollHeight;
+        };
+      }
+
     }, 800);
   }
 
-  console.log("✅ app.js FINAL — header-only typing authoritative, no ghost typing, fully synced.");
+  console.log("✅ app.js FINAL — header-only typing authoritative, no ghost typing, fully synced, join stickers fixed.");
 
 });
