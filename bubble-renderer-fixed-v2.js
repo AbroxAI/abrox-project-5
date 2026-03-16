@@ -137,7 +137,7 @@ function init() {
       if (caption) PINNED_MESSAGE_ID = id;
     }
 
-    // Reactions
+    // Reactions (FIXED — attached to wrapper so it floats outside bubble)
     if (reactions.length) {
       const pill = document.createElement('div');
       pill.className = 'tg-bubble-reactions';
@@ -147,7 +147,7 @@ function init() {
         span.textContent = `${r.emoji} ${r.count}`;
         pill.appendChild(span);
       });
-      content.appendChild(pill);
+      wrapper.appendChild(pill);
     }
 
     // Admin button
@@ -186,10 +186,8 @@ function init() {
   function appendJoinSticker(names) {
     if (!names || !names.length) return;
 
-    // Merge new names with pending ones
     pendingJoiners.push(...names);
 
-    // Remove any existing join sticker at the bottom
     const lastSticker = container.querySelector('.tg-join-sticker:last-of-type');
     if (lastSticker) lastSticker.remove();
 
@@ -205,11 +203,9 @@ function init() {
     wrapper.appendChild(textEl);
     container.appendChild(wrapper);
 
-    // Auto-scroll if near bottom
     const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 80;
     if (atBottom) container.scrollTop = container.scrollHeight;
 
-    // Clear pending joiners after render
     pendingJoiners = [];
   }
 
