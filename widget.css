@@ -339,6 +339,42 @@ html, body {
 }
 
 /* =========================
+   REACTION FLOATING PILLS (Telegram style)
+========================= */
+.tg-bubble-reactions{
+  position:absolute;
+  bottom:-10px;
+  display:flex;
+  gap:4px;
+  padding:2px;
+  pointer-events:none;
+  z-index:2;
+}
+
+.tg-bubble.incoming .tg-bubble-reactions{
+  left:54px;
+}
+
+.tg-bubble.outgoing .tg-bubble-reactions{
+  right:10px;
+}
+
+.tg-bubble-reactions .reaction{
+  background:#1f2c3a;
+  border-radius:16px;
+  font-size:11px;
+  padding:2px 6px;
+  display:flex;
+  align-items:center;
+  gap:3px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.35);
+  border:1px solid rgba(255,255,255,0.08);
+  backdrop-filter:blur(6px);
+  line-height:1;
+  pointer-events:auto;
+}
+
+/* =========================
    NEW MESSAGE BLUE PILL
 ========================= */
 #tg-jump-indicator {
@@ -402,34 +438,6 @@ html, body {
   color: #e6eef8;
   font-size: 14px;
 }
-.tg-icon-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: none;
-  color: #fff;
-  cursor: pointer;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  transition: all .2s ease;
-}
-.tg-send-btn {
-  background: var(--tg-accent);
-  border: none;
-  color: #fff;
-  border-radius: 50%;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all .2s ease;
-}
-.tg-send-btn:hover { transform: scale(1.05); }
-.tg-send-btn.hidden { display: none; }
 
 /* =========================
    JOIN STICKER (Telegram 2026 style — names only)
