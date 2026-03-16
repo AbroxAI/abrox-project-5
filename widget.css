@@ -339,25 +339,20 @@ html, body {
 }
 
 /* =========================
-   REACTION FLOATING PILLS (Telegram style)
+   REACTION FLOATING PILLS FIX
 ========================= */
 .tg-bubble-reactions{
   position:absolute;
-  bottom:-10px;
+  bottom:-12px;
   display:flex;
   gap:4px;
   padding:2px;
   pointer-events:none;
-  z-index:2;
+  z-index:3;
 }
 
-.tg-bubble.incoming .tg-bubble-reactions{
-  left:54px;
-}
-
-.tg-bubble.outgoing .tg-bubble-reactions{
-  right:10px;
-}
+.tg-bubble.incoming .tg-bubble-reactions{ left:54px; }
+.tg-bubble.outgoing .tg-bubble-reactions{ right:10px; }
 
 .tg-bubble-reactions .reaction{
   background:#1f2c3a;
@@ -370,8 +365,24 @@ html, body {
   box-shadow:0 2px 6px rgba(0,0,0,0.35);
   border:1px solid rgba(255,255,255,0.08);
   backdrop-filter:blur(6px);
-  line-height:1;
   pointer-events:auto;
+}
+
+/* =========================
+   TYPING DOTS FIX
+========================= */
+.tg-typing span{
+  width:6px; height:6px; border-radius:50%;
+  background:var(--tg-muted);
+  display:inline-block;
+  animation: tgTyping 1.4s infinite;
+}
+.tg-typing span:nth-child(2){ animation-delay:.2s; }
+.tg-typing span:nth-child(3){ animation-delay:.4s; }
+
+@keyframes tgTyping{
+  0%,80%,100%{ opacity:.3; transform:scale(.7);}
+  40%{ opacity:1; transform:scale(1);}
 }
 
 /* =========================
