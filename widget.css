@@ -28,26 +28,26 @@ html, body {
   font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
   -webkit-font-smoothing: antialiased;
 
-  /* ✅ FIXED: working Telegram doodle */
+  /* real Telegram doodle */
   background-color: #0e1621;
-  background-image: url("https://i.ibb.co/6R2m0kC/telegram-doodle-tile.png");
+  background-image: url("/assets/telegram-doodle.svg");
   background-repeat: repeat;
-  background-size: 260px 260px;
+  background-size: 240px 240px;
   background-position: center top;
   background-attachment: fixed;
 }
 
-/* ✅ NEW: overlay to make it faint like Telegram */
+/* Keep your overlay to keep the “faint” effect */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
-  background: rgba(14, 22, 33, 0.82); /* controls faintness */
+  background: rgba(14, 22, 33, 0.85);
   pointer-events: none;
   z-index: 0;
 }
 
-/* ✅ ensure app sits above overlay */
+/* ensure app sits above overlay */
 #tg-comments-app {
   position: relative;
   z-index: 1;
