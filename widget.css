@@ -76,25 +76,30 @@ object-fit: cover;
 .tg-meta { font-size: 12px; color: var(--tg-muted); margin-top: 2px; display: flex; align-items: center; gap: 4px; }
 
 /* HEADER TYPING INLINE DOTS FIXED */
-.tg-header-typing-inline,
-.tg-header-typing .user-typing-wrapper {
-  display: inline-flex;       /* keep it inline but flex */
-  align-items: center;        /* vertically center dots with text */
-  gap: 2px;                   /* smaller gap so dots sit closer to names */
+.tg-header-typing {
+  display: inline-flex !important;       /* must be inline-flex */
+  align-items: center !important;        /* vertical alignment */
+  gap: 2px !important;                   /* dots close to names */
   font-size: 12px;
   color: var(--tg-muted);
 }
 
-/* typing dots styling */
-.tg-header-typing-inline .typing-dots,
-.tg-header-typing .typing-dots {
-  display: inline-flex;
-  gap: 2px;                   /* spacing between the dots themselves */
-  margin-left: 0;              /* remove any extra spacing after names */
+.tg-header-typing-inline,
+.tg-header-typing .user-typing-wrapper {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 2px;
 }
 
-.tg-header-typing-inline .typing-dots span,
-.tg-header-typing .typing-dots span {
+.tg-header-typing .typing-dots,
+.tg-header-typing-inline .typing-dots {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 0 !important; /* no extra spacing */
+}
+
+.tg-header-typing .typing-dots span,
+.tg-header-typing-inline .typing-dots span {
   width: 4px;
   height: 4px;
   background: var(--tg-accent);
@@ -103,10 +108,10 @@ object-fit: cover;
   animation: tgTyping 1.2s infinite;
 }
 
-.tg-header-typing-inline .typing-dots span:nth-child(2),
-.tg-header-typing .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-.tg-header-typing-inline .typing-dots span:nth-child(3),
-.tg-header-typing .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+.tg-header-typing .typing-dots span:nth-child(2),
+.tg-header-typing-inline .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.tg-header-typing .typing-dots span:nth-child(3),
+.tg-header-typing-inline .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
 
 @keyframes tgTyping {
   0%, 80%, 100% { opacity: 0.3; transform: scale(0.7); }
@@ -114,7 +119,7 @@ object-fit: cover;
 }
 
 /* =========================
-   ICON BUTTONS
+   ICON BUTTONS */
 ========================= */
 .tg-back-btn, .tg-options-btn {
 background: none;
