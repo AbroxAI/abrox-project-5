@@ -367,32 +367,6 @@ html, body {
 }
 
 /* =========================
-   TYPING DOTS FIX (Telegram 2026 style)
-========================= */
-.tg-typing-dots {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  margin-left: 4px;
-}
-.tg-typing-dots span {
-  display: block;
-  width: 4px;
-  height: 4px;
-  background: var(--tg-muted);
-  border-radius: 50%;
-  animation: tgDotBounce 1s infinite ease-in-out;
-}
-.tg-typing-dots span:nth-child(1) { animation-delay: 0s; }
-.tg-typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-.tg-typing-dots span:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes tgDotBounce {
-  0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
-  40% { transform: scale(1); opacity: 1; }
-}
-
-/* =========================
    NEW MESSAGE BLUE PILL
 ========================= */
 #tg-jump-indicator {
@@ -489,3 +463,4 @@ html, body {
   .tg-bubble-image { max-height: 220px; }
   .tg-pin-banner img { max-width: 50px; max-height: 50px; }
   .tg-pin-banner .pin-btn-container { flex-direction: column; align-items: flex-start; gap: 6px; }
+}
