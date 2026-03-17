@@ -8,38 +8,6 @@
   <!-- Widget CSS -->
   <link rel="stylesheet" href="widget.css" />
 
-  <style>
-    /* =========================
-       HEADER TYPING INDICATOR
-    ========================== */
-    .tg-header-typing {
-      font-size: 12px;
-      color: #9aa7bd;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      margin-top: 2px;
-    }
-    .tg-header-typing.hidden { display: none; }
-    .typing-dots {
-      display: inline-flex;
-      gap: 2px;
-    }
-    .typing-dots span {
-      width: 4px;
-      height: 4px;
-      background: #2ea6ff;
-      border-radius: 50%;
-      animation: blink 1.2s infinite;
-    }
-    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes blink {
-      0%, 80%, 100% { opacity: 0; }
-      40% { opacity: 1; }
-    }
-  </style>
-
   <script>
     // Site configuration
     window.CONTACT_ADMIN_LINK = "https://t.me/ph_suppp";
@@ -79,12 +47,12 @@
         <img src="assets/logo.jpg" alt="Logo" class="tg-header-avatar" />
         <div class="tg-header-info">
           <div class="tg-title">🌐 Profit Hunters Chat</div>
-          <div class="tg-meta" id="tg-meta-line">1,284 members, 128 online</div>
-          <!-- Header typing indicator -->
-          <div id="tg-header-typing" class="tg-header-typing hidden">
-            <span class="typing-names"></span>
-            <span class="typing-dots"><span></span><span></span><span></span></span>
+          <!-- Meta line updated dynamically by app-fixed.js -->
+          <div class="tg-meta" id="tg-meta-line">
+            1,284 members, 128 online
           </div>
+          <!-- Header typing container (dots fully managed by app-fixed.js) -->
+          <div id="tg-header-typing" class="tg-header-typing hidden"></div>
         </div>
       </div>
 
@@ -118,70 +86,12 @@
   <!-- Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- Scripts (original loading order) -->
+  <!-- Scripts -->
   <script src="identity-personas.js"></script>
   <script src="bubble-renderer-fixed-v2.js"></script>
   <script src="ultimate-realism-full-v7.13.js"></script>
   <script src="interactions-v14.1-crowd-join-replies-typing-auto-hide.js"></script>
   <script src="app-fixed.js"></script>
 
-  <!-- Initialization + Header Typing -->
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      if(window.lucide?.createIcons) window.lucide.createIcons();
-      const inputBar = document.getElementById('tg-input-bar');
-      if(inputBar) inputBar.classList.add('locked');
-
-      // Header typing setup
-      const headerTyping = document.getElementById('tg-header-typing');
-      const typingNames = headerTyping.querySelector('.typing-names');
-
-      const activeTypers = new Map();
-      const TYPING_TIMEOUT = 5000; // ms before auto-stop
-      const MAX_DISPLAY_NAMES = 3;  // Max names to show in header
-
-      function formatNames(names) {
-        if(names.length <= MAX_DISPLAY_NAMES){
-          if(names.length === 1) return names[0];
-          if(names.length === 2) return names.join(' and ');
-          return names.slice(0, -1).join(', ') + ', and ' + names[names.length-1];
-        } else {
-          const remaining = names.length - MAX_DISPLAY_NAMES;
-          return names.slice(0, MAX_DISPLAY_NAMES).join(', ') + `, and ${remaining} other${remaining > 1 ? 's' : ''}`;
-        }
-      }
-
-      window.headerTypingStart = function(name) {
-        if(activeTypers.has(name)) clearTimeout(activeTypers.get(name));
-        activeTypers.set(name, setTimeout(() => headerTypingStop(name), TYPING_TIMEOUT));
-        updateHeaderTyping();
-      };
-
-      window.headerTypingStop = function(name) {
-        if(activeTypers.has(name)) {
-          clearTimeout(activeTypers.get(name));
-          activeTypers.delete(name);
-          updateHeaderTyping();
-        }
-      };
-
-      function updateHeaderTyping() {
-        const names = Array.from(activeTypers.keys());
-        if(names.length === 0){
-          headerTyping.classList.add('hidden');
-        } else {
-          headerTyping.classList.remove('hidden');
-          typingNames.textContent = formatNames(names);
-          typingNames.textContent += names.length > 1 ? ' are typing' : ' is typing';
-        }
-      }
-
-      // Example simulation (remove/comment in production)
-      // headerTypingStart('Alice');
-      // headerTypingStart('Bob');
-      // headerTypingStart('Charlie');
-      // headerTypingStart('David');
-    });
-  </script>
 </body>
 </html>
