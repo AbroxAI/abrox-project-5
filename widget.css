@@ -21,7 +21,7 @@ VARIABLES
 BASE
 ========================= */
 
-* { box-sizing: border-box; }
+{ box-sizing: border-box; }
 html, body {
 height: 100dvh;
 margin: 0;
@@ -75,51 +75,44 @@ object-fit: cover;
 .tg-title { font-size: 15px; font-weight: 700; }
 .tg-meta { font-size: 12px; color: var(--tg-muted); margin-top: 2px; display: flex; align-items: center; gap: 4px; }
 
-/* HEADER TYPING INLINE DOTS FIXED */
+/* =========================
+HEADER TYPING INLINE DOTS
+========================= */
 .tg-header-typing {
-  display: inline-flex !important;       /* must be inline-flex */
-  align-items: center !important;        /* vertical alignment */
-  gap: 2px !important;                   /* dots close to names */
-  font-size: 12px;
-  color: var(--tg-muted);
+font-size: 12px;
+color: var(--tg-muted);
+display: inline-flex;
+align-items: center;
+gap: 4px;
 }
 
-.tg-header-typing-inline,
-.tg-header-typing .user-typing-wrapper {
-  display: inline-flex !important;
-  align-items: center;
-  gap: 2px;
+.tg-header-typing.hidden { display: none; }
+
+.tg-header-typing .typing-dots {
+display: inline-flex;
+gap: 2px;
+margin-left: 4px; /* spacing after "is/are typing…" */
 }
 
-.tg-header-typing .typing-dots,
-.tg-header-typing-inline .typing-dots {
-  display: inline-flex;
-  gap: 2px;
-  margin-left: 0 !important; /* no extra spacing */
+.tg-header-typing .typing-dots span {
+width: 4px;
+height: 4px;
+background: var(--tg-accent);
+border-radius: 50%;
+display: inline-block;
+animation: tgTyping 1.2s infinite;
 }
 
-.tg-header-typing .typing-dots span,
-.tg-header-typing-inline .typing-dots span {
-  width: 4px;
-  height: 4px;
-  background: var(--tg-accent);
-  border-radius: 50%;
-  display: inline-block;
-  animation: tgTyping 1.2s infinite;
-}
-
-.tg-header-typing .typing-dots span:nth-child(2),
-.tg-header-typing-inline .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-.tg-header-typing .typing-dots span:nth-child(3),
-.tg-header-typing-inline .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+.tg-header-typing .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.tg-header-typing .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
 
 @keyframes tgTyping {
-  0%, 80%, 100% { opacity: 0.3; transform: scale(0.7); }
-  40% { opacity: 1; transform: scale(1); }
+0%, 80%, 100% { opacity: 0.3; transform: scale(0.7); }
+40% { opacity: 1; transform: scale(1); }
 }
 
 /* =========================
-   ICON BUTTONS */
+ICON BUTTONS
 ========================= */
 .tg-back-btn, .tg-options-btn {
 background: none;
@@ -290,57 +283,56 @@ flex-shrink: 0;
 display: block;
 }
 
-
 /* =========================
 BUBBLE CONTENT
 ========================= */
 .tg-bubble-content {
-  padding: 10px 14px;
-  border-radius: 16px;
-  font-size: 14px;
-  line-height: 1.35;
-  word-break: break-word;
-  position: relative;
-  max-width: 100%;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.18);
-  overflow: visible;
-  z-index: 1;
-  background: #182533;
-  color: var(--tg-text);
-  --bubble-tail-color: #182533;
+padding: 10px 14px;
+border-radius: 16px;
+font-size: 14px;
+line-height: 1.35;
+word-break: break-word;
+position: relative;
+max-width: 100%;
+box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+overflow: visible;
+z-index: 1;
+background: #182533;
+color: var(--tg-text);
+--bubble-tail-color: #182533;
 }
 .tg-bubble.incoming .tg-bubble-content { background: #182533; --bubble-tail-color: #182533; }
 .tg-bubble.outgoing .tg-bubble-content { background: #2b6df6; color: #fff; --bubble-tail-color: #2b6df6; }
 
 /* =========================
-   BUBBLE TAIL
+BUBBLE TAIL
 ========================= */
 .tg-bubble-content::after {
-  content: "";
-  position: absolute;
-  width: 16px;
-  height: 18px;
-  bottom: 2px;
-  pointer-events: none;
-  background: var(--bubble-tail-color);
+content: "";
+position: absolute;
+width: 16px;
+height: 18px;
+bottom: 2px;
+pointer-events: none;
+background: var(--bubble-tail-color);
 }
 .tg-bubble.incoming .tg-bubble-content::after {
-  left: -7px;
-  clip-path: polygon(100% 0, 0 100%, 100% 100%);
+left: -7px;
+clip-path: polygon(100% 0, 0 100%, 100% 100%);
 }
 .tg-bubble.outgoing .tg-bubble-content::after {
-  right: -7px;
-  transform: scaleX(-1);
-  clip-path: polygon(100% 0, 0 100%, 100% 100%);
+right: -7px;
+transform: scaleX(-1);
+clip-path: polygon(100% 0, 0 100%, 100% 100%);
 }
 
 /* =========================
-   SENDER COLORS
+SENDER COLORS
 ========================= */
 .tg-bubble-sender {
-  font-weight: 600;
-  margin-bottom: 2px;
-  font-size: 13px;
+font-weight: 600;
+margin-bottom: 2px;
+font-size: 13px;
 }
 .tg-bubble-sender[data-color="1"] { color:#2ea6ff; }
 .tg-bubble-sender[data-color="2"] { color:#ff6b6b; }
@@ -359,154 +351,154 @@ BUBBLE CONTENT
 .tg-bubble-sender[data-color="15"] { color:#d16fff; }
 
 /* =========================
-   REPLY PREVIEW
+REPLY PREVIEW
 ========================= */
 .tg-reply-preview {
-  background: rgba(255, 255, 255, 0.06);
-  border-left: 3px solid var(--tg-accent);
-  padding: 4px 8px;
-  margin-bottom: 6px;
-  border-radius: 8px;
-  font-size: 12px;
-  color: var(--tg-muted);
-  cursor: pointer;
-  transition: background 0.2s ease;
+background: rgba(255, 255, 255, 0.06);
+border-left: 3px solid var(--tg-accent);
+padding: 4px 8px;
+margin-bottom: 6px;
+border-radius: 8px;
+font-size: 12px;
+color: var(--tg-muted);
+cursor: pointer;
+transition: background 0.2s ease;
 }
 .tg-reply-preview:hover { background: rgba(46,166,255,0.15); }
 
 /* =========================
-   META TIMESTAMP
+META TIMESTAMP
 ========================= */
 .tg-bubble-meta {
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--tg-muted);
-  margin-top: 2px;
+font-size: 11px;
+font-weight: 400;
+color: var(--tg-muted);
+margin-top: 2px;
 }
 
 /* =========================
-   REACTION FLOATING PILLS
+REACTION FLOATING PILLS
 ========================= */
 .tg-bubble-reactions{
-  position:absolute;
-  bottom:-12px;
-  display:flex;
-  gap:4px;
-  padding:2px;
-  pointer-events:none;
-  z-index:3;
+position:absolute;
+bottom:-12px;
+display:flex;
+gap:4px;
+padding:2px;
+pointer-events:none;
+z-index:3;
 }
 .tg-bubble.incoming .tg-bubble-reactions{ left:54px; }
 .tg-bubble.outgoing .tg-bubble-reactions{ right:10px; }
 .tg-bubble-reactions .reaction{
-  background:#1f2c3a;
-  border-radius:16px;
-  font-size:11px;
-  padding:2px 6px;
-  display:flex;
-  align-items:center;
-  gap:3px;
-  box-shadow:0 2px 6px rgba(0,0,0,0.35);
-  border:1px solid rgba(255,255,255,0.08);
-  backdrop-filter:blur(6px);
-  pointer-events:auto;
+background:#1f2c3a;
+border-radius:16px;
+font-size:11px;
+padding:2px 6px;
+display:flex;
+align-items:center;
+gap:3px;
+box-shadow:0 2px 6px rgba(0,0,0,0.35);
+border:1px solid rgba(255,255,255,0.08);
+backdrop-filter:blur(6px);
+pointer-events:auto;
 }
 
 /* =========================
-   NEW MESSAGE BLUE PILL
+NEW MESSAGE BLUE PILL
 ========================= */
 #tg-jump-indicator {
-  position: fixed;
-  bottom: 90px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--tg-accent);
-  color: #fff;
-  padding: 6px 16px;
-  border-radius: 24px;
-  font-size: 13px;
-  font-weight: 600;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.32);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  z-index: 80;
-  transition: all 0.28s cubic-bezier(.4,0,.2,1);
+position: fixed;
+bottom: 90px;
+left: 50%;
+transform: translateX(-50%);
+background: var(--tg-accent);
+color: #fff;
+padding: 6px 16px;
+border-radius: 24px;
+font-size: 13px;
+font-weight: 600;
+box-shadow: 0 6px 18px rgba(0,0,0,0.32);
+cursor: pointer;
+display: flex;
+align-items: center;
+gap: 6px;
+z-index: 80;
+transition: all 0.28s cubic-bezier(.4,0,.2,1);
 }
 #tg-jump-indicator:hover {
-  transform: translateX(-50%) translateY(-2px);
-  box-shadow: 0 10px 24px rgba(46,166,255,0.5);
+transform: translateX(-50%) translateY(-2px);
+box-shadow: 0 10px 24px rgba(46,166,255,0.5);
 }
 #tg-jump-indicator i { width: 16px; height: 16px; stroke-width: 3; }
 #tg-jump-indicator.hidden {
-  opacity: 0;
-  pointer-events: none;
-  transform: translateX(-50%) translateY(8px);
+opacity: 0;
+pointer-events: none;
+transform: translateX(-50%) translateY(8px);
 }
 #tg-jump-text { white-space: nowrap; }
 
 /* =========================
-   INPUT BAR
+INPUT BAR
 ========================= */
 .tg-input-wrapper {
-  padding: 8px 12px;
-  background: transparent;
-  backdrop-filter: blur(16px);
-  position: sticky;
-  bottom: 0;
-  z-index: 60;
+padding: 8px 12px;
+background: transparent;
+backdrop-filter: blur(16px);
+position: sticky;
+bottom: 0;
+z-index: 60;
 }
 .tg-input-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(23,33,43,0.85);
-  border-radius: var(--tg-input-radius);
-  padding: 6px 12px;
-  backdrop-filter: blur(12px);
-  transition: all .2s ease;
+display: flex;
+align-items: center;
+gap: 6px;
+background: rgba(23,33,43,0.85);
+border-radius: var(--tg-input-radius);
+padding: 6px 12px;
+backdrop-filter: blur(12px);
+transition: all .2s ease;
 }
 .tg-input-bar:hover { background: rgba(23,33,43,0.95); }
 .tg-comment-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: #e6eef8;
-  font-size: 14px;
+flex: 1;
+background: transparent;
+border: none;
+outline: none;
+color: #e6eef8;
+font-size: 14px;
 }
 
 /* =========================
-   JOIN STICKER (Telegram 2026 style)
+JOIN STICKER (Telegram 2026 style)
 ========================= */
 .tg-join-sticker {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 18px;
-  font-size: 12px;
-  font-weight: 500;
-  background: rgba(46,166,255,0.18);
-  color: #ffffff;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-  margin: 4px 0;
-  max-width: fit-content;
-  white-space: nowrap;
-  animation: joinSlideIn 0.4s ease-out;
+display: inline-flex;
+align-items: center;
+gap: 6px;
+padding: 4px 10px;
+border-radius: 18px;
+font-size: 12px;
+font-weight: 500;
+background: rgba(46,166,255,0.18);
+color: #ffffff;
+box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+margin: 4px 0;
+max-width: fit-content;
+white-space: nowrap;
+animation: joinSlideIn 0.4s ease-out;
 }
 @keyframes joinSlideIn {
-  0% { opacity: 0; transform: translateY(-8px); }
-  100% { opacity: 1; transform: translateY(0); }
+0% { opacity: 0; transform: translateY(-8px); }
+100% { opacity: 1; transform: translateY(0); }
 }
 
 /* =========================
-   RESPONSIVE
+RESPONSIVE
 ========================= */
 @media (max-width: 520px) {
-  .tg-bubble { max-width: 86%; }
-  .tg-bubble-image { max-height: 220px; }
-  .tg-pin-banner img { max-width: 50px; max-height: 50px; }
-  .tg-pin-banner .pin-btn-container { flex-direction: column; align-items: flex-start; gap: 6px; }
+.tg-bubble { max-width: 86%; }
+.tg-bubble-image { max-height: 220px; }
+.tg-pin-banner img { max-width: 50px; max-height: 50px; }
+.tg-pin-banner .pin-btn-container { flex-direction: column; align-items: flex-start; gap: 6px; }
 }
