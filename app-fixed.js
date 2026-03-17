@@ -1,4 +1,4 @@
-// app-fixed.js — FINAL Telegram 2026 Integration (Header typing dots fixed for multiple typers)
+// app-fixed.js — FINAL Telegram 2026 Integration (Header typing dots inline, fully synced)
 document.addEventListener("DOMContentLoaded", () => {
 
   const pinBanner = document.getElementById("tg-pin-banner");
@@ -26,26 +26,28 @@ document.addEventListener("DOMContentLoaded", () => {
     100% { opacity: 0; transform: scale(1); } 
   }
 
-  /* header typing dots */
+  /* header typing dots inline */
   .tg-header-typing {
-    display: flex;
+    display: inline-flex;
     gap: 2px;
-    align-items: center;
-    height: 14px;
+    vertical-align: middle;
+    height: 8px;
   }
   .tg-header-typing span {
-    width: 6px;
-    height: 6px;
+    width: 4px;
+    height: 4px;
     border-radius: 50%;
     background: var(--tg-muted);
     display: inline-block;
-    animation: tgTyping 1.2s infinite;
+    animation: tgTyping 1s infinite ease-in-out;
   }
+  .tg-header-typing span:nth-child(1){ animation-delay: 0s; }
   .tg-header-typing span:nth-child(2){ animation-delay: 0.2s; }
   .tg-header-typing span:nth-child(3){ animation-delay: 0.4s; }
+
   @keyframes tgTyping{
-    0%,80%,100%{ opacity:.3; transform:scale(.7);}
-    40%{ opacity:1; transform:scale(1);}
+    0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+    40% { transform: scale(1); opacity: 1; }
   }`;
   document.head.appendChild(style);
 
@@ -68,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* =====================================================
-     HEADER TYPING MANAGER (dots version fixed)
+     HEADER TYPING MANAGER (dots inline)
   ===================================================== */
   const typingPersons = new Map();
 
@@ -113,38 +115,24 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    names.forEach((name, index) => {
-      // Wrap name + dots together
-      const wrapper = document.createElement("span");
-      wrapper.style.display = "inline-flex";
-      wrapper.style.alignItems = "center";
-      wrapper.style.gap = "4px";
+    // Build inline text
+    let text;
+    if (names.length === 1) text = `${names[0]} is typing`;
+    else if (names.length === 2) text = `${names[0]} & ${names[1]} are typing`;
+    else text = `${names[0]}, ${names[1]} +${names.length - 2} are typing`;
 
-      const nameEl = document.createElement("span");
-      nameEl.textContent = name;
-      wrapper.appendChild(nameEl);
+    // Append text node
+    const textNode = document.createTextNode(text + " ");
+    headerMeta.appendChild(textNode);
 
-      const dotContainer = document.createElement("span");
-      dotContainer.className = "tg-header-typing";
-      for (let i = 0; i < 3; i++) {
-        const dot = document.createElement("span");
-        dotContainer.appendChild(dot);
-      }
-      wrapper.appendChild(dotContainer);
-
-      headerMeta.appendChild(wrapper);
-
-      // Add commas / "&" between multiple typers
-      if (index < names.length - 2) {
-        headerMeta.appendChild(document.createTextNode(", "));
-      } else if (index === names.length - 2) {
-        headerMeta.appendChild(document.createTextNode(" & "));
-      } else {
-        headerMeta.appendChild(
-          document.createTextNode(names.length === 1 ? " is typing…" : " are typing…")
-        );
-      }
-    });
+    // Append inline dots
+    const dotContainer = document.createElement("span");
+    dotContainer.className = "tg-header-typing";
+    for (let i = 0; i < 3; i++) {
+      const dot = document.createElement("span");
+      dotContainer.appendChild(dot);
+    }
+    headerMeta.appendChild(dotContainer);
   }
 
   /* =====================================================
@@ -340,5 +328,5 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 800);
   }
 
-  console.log("✅ app.js FINAL — header typing dots fixed for multiple typers, fully synced, join stickers fixed.");
+  console.log("✅ app.js FINAL — header typing dots inline, fully synced, join stickers fixed.");
 });
