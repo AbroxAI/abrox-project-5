@@ -1,4 +1,4 @@
-// app-fixed.js — FINAL Telegram 2026 Integration (Header typing inline dots fixed, multiple typers)
+// app-fixed.js — FINAL Telegram 2026 Integration (multi-typer header + inline dots)
 document.addEventListener("DOMContentLoaded", () => {
   const pinBanner = document.getElementById("tg-pin-banner");
   const container = document.getElementById("tg-comments-container");
@@ -22,43 +22,6 @@ document.addEventListener("DOMContentLoaded", () => {
     20% { opacity: 1; transform: scale(1); } 
     100% { opacity: 0; transform: scale(1); } 
   }
-
-  /* HEADER TYPING INLINE DOTS FIXED */
-  .tg-header-typing-inline,
-  .tg-header-typing .user-typing-wrapper {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px; 
-    font-size: 12px;
-    color: var(--tg-muted);
-  }
-
-  .tg-header-typing-inline .typing-dots,
-  .tg-header-typing .typing-dots {
-    display: inline-flex;
-    gap: 2px;
-    margin-left: 0;
-  }
-
-  .tg-header-typing-inline .typing-dots span,
-  .tg-header-typing .typing-dots span {
-    width: 4px;
-    height: 4px;
-    background: var(--tg-accent);
-    border-radius: 50%;
-    display: inline-block;
-    animation: tgTyping 1.2s infinite;
-  }
-
-  .tg-header-typing-inline .typing-dots span:nth-child(2),
-  .tg-header-typing .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-  .tg-header-typing-inline .typing-dots span:nth-child(3),
-  .tg-header-typing .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
-
-  @keyframes tgTyping {
-    0%, 80%, 100% { opacity: 0.3; transform: scale(0.7); }
-    40% { opacity: 1; transform: scale(1); }
-  }
   `;
   document.head.appendChild(style);
 
@@ -73,7 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* =====================================================
-     HEADER TYPING MANAGER
+     HEADER TYPING MANAGER (multi-typer, inline dots)
   ===================================================== */
   const activeTypers = new Map();
   const TYPING_TIMEOUT = 5000; // ms before auto-stop
@@ -104,19 +67,34 @@ document.addEventListener("DOMContentLoaded", () => {
 
     headerTyping.classList.remove('hidden');
 
-    const wrapper = document.createElement('span');
-    wrapper.className = 'tg-header-typing-inline';
+    // Create separate wrapper per user
+    names.forEach((name, index) => {
+      const wrapper = document.createElement('span');
+      wrapper.className = 'user-typing-wrapper';
 
-    const textSpan = document.createElement('span');
-    textSpan.textContent = `${formatNames(names)} ${names.length === 1 ? 'is typing' : 'are typing'} `;
-    wrapper.appendChild(textSpan);
+      const nameEl = document.createElement('span');
+      nameEl.textContent = name;
+      wrapper.appendChild(nameEl);
 
-    const dots = document.createElement('span');
-    dots.className = 'typing-dots';
-    for(let i=0;i<3;i++) dots.appendChild(document.createElement('span'));
-    wrapper.appendChild(dots);
+      const dots = document.createElement('span');
+      dots.className = 'typing-dots';
+      for(let i=0;i<3;i++) dots.appendChild(document.createElement('span'));
+      wrapper.appendChild(dots);
 
-    headerTyping.appendChild(wrapper);
+      headerTyping.appendChild(wrapper);
+
+      // Add comma / ampersand between names
+      if(index < names.length - 2){
+        headerTyping.appendChild(document.createTextNode(', '));
+      } else if(index === names.length - 2){
+        headerTyping.appendChild(document.createTextNode(' & '));
+      }
+    });
+
+    // Add suffix
+    const textNode = document.createElement('span');
+    textNode.textContent = names.length === 1 ? ' is typing…' : ' are typing…';
+    headerTyping.appendChild(textNode);
   }
 
   window.headerTypingStart = function(name){
@@ -274,5 +252,5 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 800);
   }
 
-  console.log("✅ app.js FINAL — header typing inline dots fully inline & multiple typers fixed, join stickers fixed.");
+  console.log("✅ app-fixed.js FINAL — header typing multi-typer restored, dots inline, join stickers fixed.");
 });
