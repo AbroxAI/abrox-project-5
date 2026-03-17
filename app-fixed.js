@@ -1,14 +1,10 @@
-// app-fixed.js — FINAL Telegram 2026 Integration (Header typing dots fixed for multiple typers)
+// app-fixed.js — FINAL Telegram 2026 Integration (Header typing inline dots fixed, multiple typers)
 document.addEventListener("DOMContentLoaded", () => {
-
   const pinBanner = document.getElementById("tg-pin-banner");
   const container = document.getElementById("tg-comments-container");
   const headerMeta = document.getElementById("tg-meta-line");
 
-  if (!container) {
-    console.error("tg-comments-container missing in DOM");
-    return;
-  }
+  if (!container) { console.error("tg-comments-container missing in DOM"); return; }
 
   /* =====================================================
      TELEGRAM HIGHLIGHT PULSE
@@ -26,49 +22,51 @@ document.addEventListener("DOMContentLoaded", () => {
     100% { opacity: 0; transform: scale(1); } 
   }
 
-  /* header typing dots */
-  .tg-header-typing {
+  /* header typing inline dots */
+  .tg-header-typing-inline {
+    font-size: 12px;
+    color: var(--tg-muted);
     display: inline-flex;
-    gap: 3px;
     align-items: center;
-    height: 14px;
+    gap: 4px;
   }
-  .tg-header-typing span {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
+
+  .tg-header-typing-inline .typing-dots {
+    display: inline-flex;
+    gap: 2px;
+  }
+
+  .tg-header-typing-inline .typing-dots span {
+    width: 4px;
+    height: 4px;
     background: var(--tg-accent);
+    border-radius: 50%;
     display: inline-block;
     animation: tgTyping 1.2s infinite;
   }
-  .tg-header-typing span:nth-child(2){ animation-delay: 0.2s; }
-  .tg-header-typing span:nth-child(3){ animation-delay: 0.4s; }
-  @keyframes tgTyping{
-    0%,80%,100%{ opacity:.3; transform:scale(.7);}
-    40%{ opacity:1; transform:scale(1);}
-  }`;
+
+  .tg-header-typing-inline .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .tg-header-typing-inline .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes tgTyping {
+    0%, 80%, 100% { opacity: 0.3; transform: scale(0.7); }
+    40% { opacity: 1; transform: scale(1); }
+  }
+  `;
   document.head.appendChild(style);
 
   /* =====================================================
      SAFE APPEND WRAPPER
   ===================================================== */
   function appendSafe(persona, text, opts = {}) {
-    if (!window.TGRenderer?.appendMessage) {
-      console.warn("TGRenderer not ready");
-      return null;
-    }
-
+    if (!window.TGRenderer?.appendMessage) { console.warn("TGRenderer not ready"); return null; }
     const result = window.TGRenderer.appendMessage(persona, text, opts);
-
-    document.dispatchEvent(
-      new CustomEvent("messageAppended", { detail: { persona } })
-    );
-
+    document.dispatchEvent(new CustomEvent("messageAppended", { detail: { persona } }));
     return result;
   }
 
   /* =====================================================
-     HEADER TYPING MANAGER (dots version fixed)
+     HEADER TYPING MANAGER (inline dots, multiple typers)
   ===================================================== */
   const typingPersons = new Map();
 
@@ -76,9 +74,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const name = ev.detail?.name;
     if (!name) return;
 
-    if (typingPersons.has(name)) {
-      clearTimeout(typingPersons.get(name));
-    }
+    if (typingPersons.has(name)) clearTimeout(typingPersons.get(name));
 
     const timeout = setTimeout(() => {
       typingPersons.delete(name);
@@ -104,9 +100,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!headerMeta) return;
 
     const names = Array.from(typingPersons.keys());
-    headerMeta.innerHTML = ""; // clear old content
+    headerMeta.innerHTML = "";
 
-    // No one typing — show default member count
     if (names.length === 0) {
       headerMeta.textContent =
         `${window.MEMBER_COUNT?.toLocaleString?.() || "0"} members, ` +
@@ -114,47 +109,36 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Format names: "Alice", "Alice & Bob", "Alice, Bob & Charlie"
-    function formatNames(namesArr) {
+    function formatNames(arr) {
       const maxDisplay = 3;
-      if (namesArr.length <= maxDisplay) {
-        if (namesArr.length === 1) return namesArr[0];
-        if (namesArr.length === 2) return namesArr.join(" & ");
-        return namesArr.slice(0, -1).join(", ") + " & " + namesArr[namesArr.length - 1];
+      if (arr.length <= maxDisplay) {
+        if (arr.length === 1) return arr[0];
+        if (arr.length === 2) return arr.join(" & ");
+        return arr.slice(0, -1).join(", ") + " & " + arr[arr.length - 1];
       } else {
-        const remaining = namesArr.length - maxDisplay;
-        return (
-          namesArr.slice(0, maxDisplay).join(", ") +
-          ` & ${remaining} other${remaining > 1 ? "s" : ""}`
-        );
+        const remaining = arr.length - maxDisplay;
+        return arr.slice(0, maxDisplay).join(", ") + ` & ${remaining} other${remaining > 1 ? "s" : ""}`;
       }
     }
 
-    const namesText = document.createElement("span");
-    namesText.textContent = formatNames(names);
-    headerMeta.appendChild(namesText);
+    // Single inline wrapper for names + "is/are typing" + dots
+    const wrapper = document.createElement("span");
+    wrapper.className = "tg-header-typing-inline";
 
-    // Add single dots container after names
-    const dotContainer = document.createElement("span");
-    dotContainer.className = "tg-header-typing"; // same CSS as before
-    dotContainer.style.marginLeft = "6px"; // spacing between names and dots
+    const textSpan = document.createElement("span");
+    textSpan.textContent = `${formatNames(names)} ${names.length === 1 ? "is typing" : "are typing"} `;
+    wrapper.appendChild(textSpan);
 
-    for (let i = 0; i < 3; i++) {
-      const dot = document.createElement("span");
-      dotContainer.appendChild(dot);
-    }
+    const dots = document.createElement("span");
+    dots.className = "typing-dots";
+    for (let i = 0; i < 3; i++) { dots.appendChild(document.createElement("span")); }
+    wrapper.appendChild(dots);
 
-    headerMeta.appendChild(dotContainer);
-
-    // Add "is typing…" or "are typing…" text
-    const suffix = document.createElement("span");
-    suffix.style.marginLeft = "4px";
-    suffix.textContent = names.length === 1 ? "is typing…" : "are typing…";
-    headerMeta.appendChild(suffix);
+    headerMeta.appendChild(wrapper);
   }
 
   /* =====================================================
-     PIN SYSTEM
+     PIN SYSTEM & BROADCAST
   ===================================================== */
   function jumpToMessage(el) {
     if (!el) return;
@@ -166,17 +150,11 @@ document.addEventListener("DOMContentLoaded", () => {
   function safeJumpById(id, retries = 6) {
     const el = document.querySelector(`[data-id="${id}"]`);
     if (el) jumpToMessage(el);
-    else if (retries > 0)
-      setTimeout(() => safeJumpById(id, retries - 1), 200);
+    else if (retries > 0) setTimeout(() => safeJumpById(id, retries - 1), 200);
   }
 
   function postAdminBroadcast() {
-    const admin = window.identity?.Admin || {
-      name: "Admin",
-      avatar: "assets/admin.jpg",
-      isAdmin: true
-    };
-
+    const admin = window.identity?.Admin || { name: "Admin", avatar: "assets/admin.jpg", isAdmin: true };
     const caption = `📌 Group Rules
 
 1️⃣ New members are read-only until verified.
@@ -185,17 +163,9 @@ document.addEventListener("DOMContentLoaded", () => {
 4️⃣ ⚠️ Ignore unsolicited messages.
 
 ✅ To verify or contact admin, use the Contact Admin button below.`;
-
     const image = "assets/broadcast.jpg";
     const timestamp = new Date();
-
-    const id = appendSafe(admin, "", {
-      timestamp,
-      type: "incoming",
-      image,
-      caption
-    });
-
+    const id = appendSafe(admin, "", { timestamp, type: "incoming", image, caption });
     return { id, image };
   }
 
@@ -245,106 +215,67 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const broadcast = postAdminBroadcast();
-
-  setTimeout(() => {
-    postPinNotice();
-    showPinBanner(broadcast.image, broadcast.id);
-  }, 1200);
+  setTimeout(() => { postPinNotice(); showPinBanner(broadcast.image, broadcast.id); }, 1200);
 
   /* =====================================================
-     GLOBAL HEADER TYPING QUEUE
+     GLOBAL TYPING QUEUE
   ===================================================== */
   let typingQueue = Promise.resolve();
 
   function queuedTyping(persona, message) {
     if (!persona?.name) return Promise.resolve();
-
     typingQueue = typingQueue.then(async () => {
-      document.dispatchEvent(
-        new CustomEvent("headerTyping", { detail: { name: persona.name } })
-      );
-
-      const duration =
-        window.TGRenderer?.calculateTypingDuration?.(message) || 1200;
-
-      await new Promise(resolve => setTimeout(resolve, duration));
-    }).catch(err => {
-      console.error("Typing queue error:", err);
-    });
-
+      document.dispatchEvent(new CustomEvent("headerTyping", { detail: { name: persona.name } }));
+      const duration = window.TGRenderer?.calculateTypingDuration?.(message) || 1200;
+      await new Promise(r => setTimeout(r, duration));
+    }).catch(console.error);
     return typingQueue;
   }
 
   /* =====================================================
-     ADMIN AUTO RESPONSE
+     ADMIN AUTO RESPONSE & AUTO REPLY
   ===================================================== */
   document.addEventListener("sendMessage", async (ev) => {
     const text = ev.detail?.text || "";
-    const admin = window.identity?.Admin || {
-      name: "Admin",
-      avatar: "assets/admin.jpg"
-    };
-
+    const admin = window.identity?.Admin || { name: "Admin", avatar: "assets/admin.jpg" };
     await queuedTyping(admin, text);
-
-    appendSafe(
-      admin,
-      "Please use the Contact Admin button in the pinned banner above.",
-      { timestamp: new Date(), type: "incoming" }
-    );
+    appendSafe(admin, "Please use the Contact Admin button in the pinned banner above.", { timestamp: new Date(), type: "incoming" });
   });
 
-  /* =====================================================
-     AUTO REPLY HANDLER
-  ===================================================== */
   document.addEventListener("autoReply", async (ev) => {
     const { parentText, persona, text } = ev.detail || {};
     if (!persona || !text) return;
-
     await queuedTyping(persona, text);
-
-    appendSafe(persona, text, {
-      timestamp: new Date(),
-      type: "incoming",
-      replyToText: parentText
-    });
+    appendSafe(persona, text, { timestamp: new Date(), type: "incoming", replyToText: parentText });
   });
 
   /* =====================================================
-     START REALISM ENGINE
-     (Join sticker names-only fix integrated globally)
+     REALISM ENGINE (Join Sticker fix)
   ===================================================== */
   if (window.realism?.simulate) {
     setTimeout(() => {
       window.realism.simulate();
-
       if (window.TGRenderer) {
-        const originalAppendJoin = window.TGRenderer.appendJoinSticker;
         window.TGRenderer.appendJoinSticker = function(names) {
-          if (!names || names.length === 0) return;
+          if (!names?.length) return;
           const container = document.getElementById("tg-comments-container");
           const lastSticker = container?.querySelector(".tg-join-sticker:last-of-type");
           if (lastSticker) lastSticker.remove();
-
           const wrapper = document.createElement("div");
           wrapper.className = "tg-join-sticker";
-
           const textEl = document.createElement("div");
           textEl.className = "tg-join-text";
           textEl.textContent = names.length > 3
             ? `${names.slice(0,3).join(", ")} & ${names.length-3} others joined the chat`
             : `${names.join(", ")} joined the chat`;
-
           wrapper.appendChild(textEl);
           container?.appendChild(wrapper);
-
-          const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 80;
-          if (atBottom) container.scrollTop = container.scrollHeight;
+          if (container.scrollTop + container.clientHeight >= container.scrollHeight - 80)
+            container.scrollTop = container.scrollHeight;
         };
       }
-
     }, 800);
   }
 
-  console.log("✅ app.js FINAL — header typing dots fixed for multiple typers, fully synced, join stickers fixed.");
+  console.log("✅ app.js FINAL — header typing inline dots fully inline & multiple typers fixed, join stickers fixed.");
 });
