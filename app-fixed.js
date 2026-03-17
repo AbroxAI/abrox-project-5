@@ -28,8 +28,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* header typing dots */
   .tg-header-typing {
-    display: flex;
-    gap: 2px;
+    display: inline-flex;
+    gap: 3px;
     align-items: center;
     height: 14px;
   }
@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--tg-muted);
+    background: var(--tg-accent);
     display: inline-block;
     animation: tgTyping 1.2s infinite;
   }
@@ -106,6 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const names = Array.from(typingPersons.keys());
     headerMeta.innerHTML = ""; // clear old content
 
+    // No one typing — show default member count
     if (names.length === 0) {
       headerMeta.textContent =
         `${window.MEMBER_COUNT?.toLocaleString?.() || "0"} members, ` +
@@ -113,38 +114,43 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    names.forEach((name, index) => {
-      // Wrap name + dots together
-      const wrapper = document.createElement("span");
-      wrapper.style.display = "inline-flex";
-      wrapper.style.alignItems = "center";
-      wrapper.style.gap = "4px";
-
-      const nameEl = document.createElement("span");
-      nameEl.textContent = name;
-      wrapper.appendChild(nameEl);
-
-      const dotContainer = document.createElement("span");
-      dotContainer.className = "tg-header-typing";
-      for (let i = 0; i < 3; i++) {
-        const dot = document.createElement("span");
-        dotContainer.appendChild(dot);
-      }
-      wrapper.appendChild(dotContainer);
-
-      headerMeta.appendChild(wrapper);
-
-      // Add commas / "&" between multiple typers
-      if (index < names.length - 2) {
-        headerMeta.appendChild(document.createTextNode(", "));
-      } else if (index === names.length - 2) {
-        headerMeta.appendChild(document.createTextNode(" & "));
+    // Format names: "Alice", "Alice & Bob", "Alice, Bob & Charlie"
+    function formatNames(namesArr) {
+      const maxDisplay = 3;
+      if (namesArr.length <= maxDisplay) {
+        if (namesArr.length === 1) return namesArr[0];
+        if (namesArr.length === 2) return namesArr.join(" & ");
+        return namesArr.slice(0, -1).join(", ") + " & " + namesArr[namesArr.length - 1];
       } else {
-        headerMeta.appendChild(
-          document.createTextNode(names.length === 1 ? " is typing…" : " are typing…")
+        const remaining = namesArr.length - maxDisplay;
+        return (
+          namesArr.slice(0, maxDisplay).join(", ") +
+          ` & ${remaining} other${remaining > 1 ? "s" : ""}`
         );
       }
-    });
+    }
+
+    const namesText = document.createElement("span");
+    namesText.textContent = formatNames(names);
+    headerMeta.appendChild(namesText);
+
+    // Add single dots container after names
+    const dotContainer = document.createElement("span");
+    dotContainer.className = "tg-header-typing"; // same CSS as before
+    dotContainer.style.marginLeft = "6px"; // spacing between names and dots
+
+    for (let i = 0; i < 3; i++) {
+      const dot = document.createElement("span");
+      dotContainer.appendChild(dot);
+    }
+
+    headerMeta.appendChild(dotContainer);
+
+    // Add "is typing…" or "are typing…" text
+    const suffix = document.createElement("span");
+    suffix.style.marginLeft = "4px";
+    suffix.textContent = names.length === 1 ? "is typing…" : "are typing…";
+    headerMeta.appendChild(suffix);
   }
 
   /* =====================================================
