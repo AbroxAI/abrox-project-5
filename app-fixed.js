@@ -1,4 +1,4 @@
-// app-fixed.js — FINAL Telegram 2026 Integration (Header typing dots inline, fully synced)
+// app-fixed.js — FINAL Telegram 2026 Integration (Header-only typing, fully synced)
 document.addEventListener("DOMContentLoaded", () => {
 
   const pinBanner = document.getElementById("tg-pin-banner");
@@ -24,30 +24,6 @@ document.addEventListener("DOMContentLoaded", () => {
     0% { opacity: 1; transform: scale(1.02); } 
     20% { opacity: 1; transform: scale(1); } 
     100% { opacity: 0; transform: scale(1); } 
-  }
-
-  /* header typing dots inline */
-  .tg-header-typing {
-    display: inline-flex;
-    gap: 2px;
-    vertical-align: middle;
-    height: 8px;
-  }
-  .tg-header-typing span {
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: var(--tg-muted);
-    display: inline-block;
-    animation: tgTyping 1s infinite ease-in-out;
-  }
-  .tg-header-typing span:nth-child(1){ animation-delay: 0s; }
-  .tg-header-typing span:nth-child(2){ animation-delay: 0.2s; }
-  .tg-header-typing span:nth-child(3){ animation-delay: 0.4s; }
-
-  @keyframes tgTyping{
-    0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
-    40% { transform: scale(1); opacity: 1; }
   }`;
   document.head.appendChild(style);
 
@@ -70,7 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* =====================================================
-     HEADER TYPING MANAGER (dots inline)
+     HEADER TYPING MANAGER
   ===================================================== */
   const typingPersons = new Map();
 
@@ -106,33 +82,22 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!headerMeta) return;
 
     const names = Array.from(typingPersons.keys());
-    headerMeta.innerHTML = ""; // clear old content
 
     if (names.length === 0) {
       headerMeta.textContent =
         `${window.MEMBER_COUNT?.toLocaleString?.() || "0"} members, ` +
         `${window.ONLINE_COUNT?.toLocaleString?.() || "0"} online`;
-      return;
     }
-
-    // Build inline text
-    let text;
-    if (names.length === 1) text = `${names[0]} is typing`;
-    else if (names.length === 2) text = `${names[0]} & ${names[1]} are typing`;
-    else text = `${names[0]}, ${names[1]} +${names.length - 2} are typing`;
-
-    // Append text node
-    const textNode = document.createTextNode(text + " ");
-    headerMeta.appendChild(textNode);
-
-    // Append inline dots
-    const dotContainer = document.createElement("span");
-    dotContainer.className = "tg-header-typing";
-    for (let i = 0; i < 3; i++) {
-      const dot = document.createElement("span");
-      dotContainer.appendChild(dot);
+    else if (names.length === 1) {
+      headerMeta.textContent = `${names[0]} is typing…`;
     }
-    headerMeta.appendChild(dotContainer);
+    else if (names.length === 2) {
+      headerMeta.textContent = `${names[0]} & ${names[1]} are typing…`;
+    }
+    else {
+      headerMeta.textContent =
+        `${names[0]}, ${names[1]} +${names.length - 2} are typing…`;
+    }
   }
 
   /* =====================================================
@@ -300,10 +265,12 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => {
       window.realism.simulate();
 
+      // Ensure join stickers are names-only
       if (window.TGRenderer) {
         const originalAppendJoin = window.TGRenderer.appendJoinSticker;
         window.TGRenderer.appendJoinSticker = function(names) {
           if (!names || names.length === 0) return;
+          // Merge names only
           const container = document.getElementById("tg-comments-container");
           const lastSticker = container?.querySelector(".tg-join-sticker:last-of-type");
           if (lastSticker) lastSticker.remove();
@@ -320,6 +287,7 @@ document.addEventListener("DOMContentLoaded", () => {
           wrapper.appendChild(textEl);
           container?.appendChild(wrapper);
 
+          // Auto-scroll if near bottom
           const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 80;
           if (atBottom) container.scrollTop = container.scrollHeight;
         };
@@ -328,5 +296,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 800);
   }
 
-  console.log("✅ app.js FINAL — header typing dots inline, fully synced, join stickers fixed.");
+  console.log("✅ app.js FINAL — header-only typing authoritative, no ghost typing, fully synced, join stickers fixed.");
+
 });
