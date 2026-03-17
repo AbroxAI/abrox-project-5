@@ -74,6 +74,36 @@ html, body {
 .tg-meta { font-size: 12px; color: var(--tg-muted); margin-top: 2px; display: flex; align-items: center; gap: 4px; }
 
 /* =========================
+   HEADER TYPING DOTS ONLY
+========================= */
+.tg-header-typing {
+  font-size: 12px;
+  color: var(--tg-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+.tg-header-typing.hidden { display: none; }
+.tg-header-typing .typing-dots {
+  display: inline-flex;
+  gap: 2px;
+}
+.tg-header-typing .typing-dots span {
+  width: 4px;
+  height: 4px;
+  background: var(--tg-accent);
+  border-radius: 50%;
+  animation: blink 1.2s infinite;
+}
+.tg-header-typing .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.tg-header-typing .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes blink {
+  0%, 80%, 100% { opacity: 0; }
+  40% { opacity: 1; }
+}
+
+/* =========================
    ICON BUTTONS
 ========================= */
 .tg-back-btn, .tg-options-btn {
@@ -367,36 +397,6 @@ html, body {
 }
 
 /* =========================
-   TYPING DOTS FIX (Telegram 2026 style)
-========================= */
-.tg-typing-wrapper {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.tg-typing-dots {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-}
-.tg-typing-dots span {
-  display: block;
-  width: 4px;
-  height: 4px;
-  background: var(--tg-muted);
-  border-radius: 50%;
-  animation: tgDotBounce 1s infinite ease-in-out;
-}
-.tg-typing-dots span:nth-child(1) { animation-delay: 0s; }
-.tg-typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-.tg-typing-dots span:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes tgDotBounce {
-  0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
-  40% { transform: scale(1); opacity: 1; }
-}
-
-/* =========================
    NEW MESSAGE BLUE PILL
 ========================= */
 #tg-jump-indicator {
@@ -493,4 +493,3 @@ html, body {
   .tg-bubble-image { max-height: 220px; }
   .tg-pin-banner img { max-width: 50px; max-height: 50px; }
   .tg-pin-banner .pin-btn-container { flex-direction: column; align-items: flex-start; gap: 6px; }
-}
