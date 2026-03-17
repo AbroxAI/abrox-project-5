@@ -1,4 +1,4 @@
-// app-fixed.js — FINAL Telegram 2026 Integration (Header-only typing, fully synced)
+// app-fixed.js — FINAL Telegram 2026 Integration (Header typing text + dots)
 document.addEventListener("DOMContentLoaded", () => {
 
   const pinBanner = document.getElementById("tg-pin-banner");
@@ -25,27 +25,28 @@ document.addEventListener("DOMContentLoaded", () => {
     20% { opacity: 1; transform: scale(1); } 
     100% { opacity: 0; transform: scale(1); } 
   }
-  /* Header typing dots */
-  .tg-header-typing {
-    display: inline-flex;
-    gap: 3px;
-    margin-left: 4px;
-  }
-  .tg-header-typing span {
-    display: block;
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: #9aa7bd;
-    animation: tgDotBounce 1s infinite ease-in-out;
-  }
-  .tg-header-typing span:nth-child(1){ animation-delay: 0s; }
-  .tg-header-typing span:nth-child(2){ animation-delay: 0.2s; }
-  .tg-header-typing span:nth-child(3){ animation-delay: 0.4s; }
 
-  @keyframes tgDotBounce{
-    0%,80%,100% { transform: scale(0); opacity: 0.3; }
-    40% { transform: scale(1); opacity: 1; }
+  /* header typing dots */
+  .tg-header-typing-dots {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+    margin-left: 6px;
+    height: 14px;
+  }
+  .tg-header-typing-dots span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--tg-muted);
+    display: inline-block;
+    animation: tgTyping 1.4s infinite;
+  }
+  .tg-header-typing-dots span:nth-child(2){ animation-delay: 0.2s; }
+  .tg-header-typing-dots span:nth-child(3){ animation-delay: 0.4s; }
+  @keyframes tgTyping{
+    0%,80%,100%{ opacity:.3; transform:scale(.7);}
+    40%{ opacity:1; transform:scale(1);}
   }`;
   document.head.appendChild(style);
 
@@ -68,7 +69,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* =====================================================
-     HEADER TYPING MANAGER
+     HEADER TYPING MANAGER (text + dots)
   ===================================================== */
   const typingPersons = new Map();
 
@@ -110,24 +111,25 @@ document.addEventListener("DOMContentLoaded", () => {
       headerMeta.textContent =
         `${window.MEMBER_COUNT?.toLocaleString?.() || "0"} members, ` +
         `${window.ONLINE_COUNT?.toLocaleString?.() || "0"} online`;
-    } else {
-      let text = "";
-      if (names.length === 1) text = `${names[0]} is typing…`;
-      else if (names.length === 2) text = `${names[0]} & ${names[1]} are typing…`;
-      else text = `${names[0]}, ${names[1]} +${names.length-2} are typing…`;
-
-      const span = document.createElement("span");
-      span.textContent = text;
-      headerMeta.appendChild(span);
-
-      const dots = document.createElement("div");
-      dots.className = "tg-header-typing";
-      for (let i = 0; i < 3; i++) {
-        const dot = document.createElement("span");
-        dots.appendChild(dot);
-      }
-      headerMeta.appendChild(dots);
+      return;
     }
+
+    // Construct typing text
+    let typingText = "";
+    if (names.length === 1) typingText = `${names[0]} is typing`;
+    else if (names.length === 2) typingText = `${names[0]} & ${names[1]} are typing`;
+    else typingText = `${names[0]}, ${names[1]} +${names.length-2} are typing`;
+
+    headerMeta.textContent = typingText;
+
+    // Append animated dots
+    const dots = document.createElement("span");
+    dots.className = "tg-header-typing-dots";
+    for (let i = 0; i < 3; i++) {
+      const dot = document.createElement("span");
+      dots.appendChild(dot);
+    }
+    headerMeta.appendChild(dots);
   }
 
   /* =====================================================
@@ -164,10 +166,9 @@ document.addEventListener("DOMContentLoaded", () => {
 ✅ To verify or contact admin, use the Contact Admin button below.`;
 
     const image = "assets/broadcast.jpg";
-    const timestamp = new Date();
 
     const id = appendSafe(admin, "", {
-      timestamp,
+      timestamp: new Date(),
       type: "incoming",
       image,
       caption
@@ -295,7 +296,6 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => {
       window.realism.simulate();
 
-      // Ensure join stickers are names-only
       if (window.TGRenderer) {
         const originalAppendJoin = window.TGRenderer.appendJoinSticker;
         window.TGRenderer.appendJoinSticker = function(names) {
@@ -324,6 +324,5 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 800);
   }
 
-  console.log("✅ app.js FINAL — header-only typing with animated dots, fully synced, join stickers fixed.");
-
+  console.log("✅ app.js FINAL — header typing shows 'X is typing…' + animated dots, fully synced, join stickers fixed.");
 });
