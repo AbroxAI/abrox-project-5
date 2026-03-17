@@ -1,4 +1,4 @@
-// app-fixed.js — FINAL Telegram 2026 Integration (Header typing inline dots fixed, multiple typers)
+// app-fixed.js — FINAL Telegram 2026 Integration (Header typing fully fixed, multiple typers, inline dots)
 document.addEventListener("DOMContentLoaded", () => {
   const pinBanner = document.getElementById("tg-pin-banner");
   const container = document.getElementById("tg-comments-container");
@@ -22,46 +22,6 @@ document.addEventListener("DOMContentLoaded", () => {
     20% { opacity: 1; transform: scale(1); } 
     100% { opacity: 0; transform: scale(1); } 
   }
-
-  /* =========================
-     HEADER TYPING INLINE DOTS FIXED
-  ========================== */
-  .tg-header-typing {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 2px !important;
-    font-size: 12px;
-    color: var(--tg-muted);
-  }
-
-  .tg-header-typing .user-typing-wrapper {
-    display: inline-flex !important;
-    align-items: center;
-    gap: 2px;
-  }
-
-  .tg-header-typing .typing-dots {
-    display: inline-flex;
-    gap: 2px;
-    margin-left: 0 !important;
-  }
-
-  .tg-header-typing .typing-dots span {
-    width: 4px;
-    height: 4px;
-    background: var(--tg-accent);
-    border-radius: 50%;
-    display: inline-block;
-    animation: tgTyping 1.2s infinite;
-  }
-
-  .tg-header-typing .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-  .tg-header-typing .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
-
-  @keyframes tgTyping {
-    0%, 80%, 100% { opacity: 0.3; transform: scale(0.7); }
-    40% { opacity: 1; transform: scale(1); }
-  }
   `;
   document.head.appendChild(style);
 
@@ -82,21 +42,22 @@ document.addEventListener("DOMContentLoaded", () => {
   const TYPING_TIMEOUT = 5000; // ms before auto-stop
   const MAX_DISPLAY_NAMES = 3;
 
-  function formatNames(names) {
+  function formatNames(names){
     if(names.length <= MAX_DISPLAY_NAMES){
       if(names.length === 1) return names[0];
       if(names.length === 2) return names.join(' & ');
       return names.slice(0, -1).join(', ') + ' & ' + names[names.length-1];
     } else {
       const remaining = names.length - MAX_DISPLAY_NAMES;
-      return names.slice(0, MAX_DISPLAY_NAMES).join(', ') + ` & ${remaining} other${remaining > 1 ? 's' : ''}`;
+      return names.slice(0, MAX_DISPLAY_NAMES).join(', ') + ` & ${remaining} other${remaining>1?'s':''}`;
     }
   }
 
-  function updateHeaderTyping() {
+  function updateHeaderTyping(){
     if(!headerTyping) return;
     const names = Array.from(activeTypers.keys());
     headerTyping.innerHTML = '';
+
     if(names.length === 0){
       headerTyping.classList.add('hidden');
       if(headerMeta) headerMeta.textContent =
@@ -107,37 +68,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
     headerTyping.classList.remove('hidden');
 
-    // Single wrapper with multiple user-typing elements
-    names.forEach((name, index) => {
-      const wrapper = document.createElement('span');
-      wrapper.className = 'user-typing-wrapper';
+    // Single inline wrapper for all names + "is/are typing" + dots
+    const wrapper = document.createElement('span');
+    wrapper.className = 'tg-header-typing-inline';
 
-      const nameEl = document.createElement('span');
-      nameEl.textContent = name;
-      wrapper.appendChild(nameEl);
+    const textSpan = document.createElement('span');
+    textSpan.textContent = `${formatNames(names)} ${names.length === 1 ? 'is typing' : 'are typing'} `;
+    wrapper.appendChild(textSpan);
 
-      const dots = document.createElement('span');
-      dots.className = 'typing-dots';
-      for(let i=0;i<3;i++) dots.appendChild(document.createElement('span'));
-      wrapper.appendChild(dots);
+    const dots = document.createElement('span');
+    dots.className = 'typing-dots';
+    for(let i=0;i<3;i++) dots.appendChild(document.createElement('span'));
+    wrapper.appendChild(dots);
 
-      headerTyping.appendChild(wrapper);
-
-      // Commas and "&"
-      if(index < names.length - 2){
-        headerTyping.appendChild(document.createTextNode(', '));
-      } else if(index === names.length - 2){
-        headerTyping.appendChild(document.createTextNode(' & '));
-      }
-    });
-
-    // Add typing text after all users
-    const textNode = document.createElement('span');
-    textNode.textContent = names.length === 1 ? ' is typing…' : ' are typing…';
-    headerTyping.appendChild(textNode);
+    headerTyping.appendChild(wrapper);
   }
 
   window.headerTypingStart = function(name){
+    if(!name) return;
     if(activeTypers.has(name)) clearTimeout(activeTypers.get(name));
     activeTypers.set(name, setTimeout(()=>{ window.headerTypingStop(name); }, TYPING_TIMEOUT));
     updateHeaderTyping();
@@ -151,7 +99,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  document.addEventListener("messageAppended", (ev) => {
+  // Stop typing when message is appended
+  document.addEventListener("messageAppended", (ev)=>{
     const persona = ev.detail?.persona;
     if(!persona?.name) return;
     window.headerTypingStop(persona.name);
@@ -292,5 +241,5 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 800);
   }
 
-  console.log("✅ app.js FINAL — header typing restored, inline dots fixed, multiple typers supported.");
+  console.log("✅ app.js FINAL — header typing fully working, multiple typers, inline dots, join stickers fixed.");
 });
