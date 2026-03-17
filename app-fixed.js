@@ -1,4 +1,4 @@
-// app-fixed.js — FINAL Telegram 2026 Integration (Header typing dots inline, fully synced)
+// app-fixed.js — FINAL Telegram 2026 Integration (Header typing dots per name, fully synced)
 document.addEventListener("DOMContentLoaded", () => {
 
   const pinBanner = document.getElementById("tg-pin-banner");
@@ -26,9 +26,28 @@ document.addEventListener("DOMContentLoaded", () => {
     100% { opacity: 0; transform: scale(1); } 
   }
 
-  @keyframes tgTyping{
-    0%,80%,100%{ opacity:.3; transform:scale(.7);}
-    40%{ opacity:1; transform:scale(1);}
+  /* header typing dots */
+  .tg-header-typing {
+    display: inline-flex;
+    gap: 3px;
+    align-items: center;
+    margin-left: 4px;
+  }
+  .tg-header-typing span {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--tg-muted);
+    display: inline-block;
+    animation: tgDotBounce 1s infinite ease-in-out;
+  }
+  .tg-header-typing span:nth-child(1) { animation-delay: 0s; }
+  .tg-header-typing span:nth-child(2) { animation-delay: 0.2s; }
+  .tg-header-typing span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes tgDotBounce {
+    0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+    40% { transform: scale(1); opacity: 1; }
   }`;
   document.head.appendChild(style);
 
@@ -51,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* =====================================================
-     HEADER TYPING MANAGER (inline dots)
+     HEADER TYPING MANAGER (dots per name)
   ===================================================== */
   const typingPersons = new Map();
 
@@ -96,36 +115,32 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Construct typing text
-    let typingText = "";
-    if (names.length === 1) typingText = `${names[0]} is typing`;
-    else if (names.length === 2) typingText = `${names[0]} & ${names[1]} are typing`;
-    else typingText = `${names[0]}, ${names[1]} +${names.length-2} are typing`;
+    names.forEach((name, index) => {
+      // Name text
+      const textNode = document.createTextNode(name + " ");
+      headerMeta.appendChild(textNode);
 
-    // Text span
-    const textSpan = document.createElement("span");
-    textSpan.textContent = typingText;
+      // Animated dots for this name
+      const dotContainer = document.createElement("span");
+      dotContainer.className = "tg-header-typing";
+      for (let i = 0; i < 3; i++) {
+        const dot = document.createElement("span");
+        dotContainer.appendChild(dot);
+      }
+      headerMeta.appendChild(dotContainer);
 
-    // Inline dots span
-    const dots = document.createElement("span");
-    dots.style.display = "inline-flex";
-    dots.style.gap = "2px";
-    dots.style.marginLeft = "4px";
-
-    for (let i = 0; i < 3; i++) {
-      const dot = document.createElement("span");
-      dot.style.width = "6px";
-      dot.style.height = "6px";
-      dot.style.borderRadius = "50%";
-      dot.style.background = "var(--tg-muted)";
-      dot.style.display = "inline-block";
-      dot.style.animation = "tgTyping 1.4s infinite";
-      dot.style.animationDelay = `${i * 0.2}s`;
-      dots.appendChild(dot);
-    }
-
-    headerMeta.appendChild(textSpan);
-    headerMeta.appendChild(dots);
+      // Add comma / "and" between names
+      if (index < names.length - 2) {
+        headerMeta.appendChild(document.createTextNode(", "));
+      } else if (index === names.length - 2) {
+        headerMeta.appendChild(document.createTextNode(" & "));
+      } else {
+        // last name, add " is typing…" or " are typing…"
+        headerMeta.appendChild(
+          document.createTextNode(names.length === 1 ? " is typing…" : " are typing…")
+        );
+      }
+    });
   }
 
   /* =====================================================
@@ -321,5 +336,5 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 800);
   }
 
-  console.log("✅ app.js FINAL — header typing inline dots, fully synced, join stickers fixed.");
+  console.log("✅ app.js FINAL — header typing dots per name, fully synced, join stickers fixed.");
 });
