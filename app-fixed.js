@@ -1,4 +1,4 @@
-// app-fixed.js — FINAL Telegram 2026 Integration (Header typing inline dots fixed, multiple typers working)
+// app-fixed.js — FINAL Telegram 2026 Integration (Header typing inline dots fixed, multiple typers)
 document.addEventListener("DOMContentLoaded", () => {
   const pinBanner = document.getElementById("tg-pin-banner");
   const container = document.getElementById("tg-comments-container");
@@ -23,14 +23,12 @@ document.addEventListener("DOMContentLoaded", () => {
     100% { opacity: 0; transform: scale(1); } 
   }
 
-  /* =========================
-     HEADER TYPING INLINE DOTS FIXED
-  ========================== */
+  /* HEADER TYPING INLINE DOTS FIXED */
   .tg-header-typing-inline,
   .tg-header-typing .user-typing-wrapper {
     display: inline-flex;
     align-items: center;
-    gap: 2px;
+    gap: 2px; 
     font-size: 12px;
     color: var(--tg-muted);
   }
@@ -54,7 +52,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   .tg-header-typing-inline .typing-dots span:nth-child(2),
   .tg-header-typing .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-
   .tg-header-typing-inline .typing-dots span:nth-child(3),
   .tg-header-typing .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
 
@@ -76,39 +73,42 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* =====================================================
-     HEADER TYPING MANAGER (inline dots, multiple typers)
+     HEADER TYPING MANAGER
   ===================================================== */
   const activeTypers = new Map();
-  const TYPING_TIMEOUT = 5000; // ms
+  const TYPING_TIMEOUT = 5000; // ms before auto-stop
   const MAX_DISPLAY_NAMES = 3;
 
-  function formatNames(names){
+  function formatNames(names) {
     if(names.length <= MAX_DISPLAY_NAMES){
-      if(names.length===1) return names[0];
-      if(names.length===2) return names.join(' & ');
-      return names.slice(0,-1).join(', ') + ' & ' + names[names.length-1];
+      if(names.length === 1) return names[0];
+      if(names.length === 2) return names.join(' & ');
+      return names.slice(0, -1).join(', ') + ' & ' + names[names.length-1];
     } else {
       const remaining = names.length - MAX_DISPLAY_NAMES;
-      return names.slice(0,MAX_DISPLAY_NAMES).join(', ') + ` & ${remaining} other${remaining>1?'s':''}`;
+      return names.slice(0, MAX_DISPLAY_NAMES).join(', ') + ` & ${remaining} other${remaining > 1 ? 's' : ''}`;
     }
   }
 
-  function updateHeaderTyping(){
+  function updateHeaderTyping() {
     if(!headerTyping) return;
     const names = Array.from(activeTypers.keys());
     headerTyping.innerHTML = '';
-    if(names.length===0){
+    if(names.length === 0){
       headerTyping.classList.add('hidden');
-      if(headerMeta) headerMeta.textContent = `${window.MEMBER_COUNT||0} members, ${window.ONLINE_COUNT||0} online`;
+      if(headerMeta) headerMeta.textContent =
+        `${window.MEMBER_COUNT?.toLocaleString?.() || "0"} members, ` +
+        `${window.ONLINE_COUNT?.toLocaleString?.() || "0"} online`;
       return;
     }
+
     headerTyping.classList.remove('hidden');
 
     const wrapper = document.createElement('span');
     wrapper.className = 'tg-header-typing-inline';
 
     const textSpan = document.createElement('span');
-    textSpan.textContent = `${formatNames(names)} ${names.length===1?'is typing':'are typing'} `;
+    textSpan.textContent = `${formatNames(names)} ${names.length === 1 ? 'is typing' : 'are typing'} `;
     wrapper.appendChild(textSpan);
 
     const dots = document.createElement('span');
@@ -120,18 +120,24 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   window.headerTypingStart = function(name){
-    if(!name) return;
     if(activeTypers.has(name)) clearTimeout(activeTypers.get(name));
     activeTypers.set(name, setTimeout(()=>{ window.headerTypingStop(name); }, TYPING_TIMEOUT));
     updateHeaderTyping();
   }
 
   window.headerTypingStop = function(name){
-    if(!activeTypers.has(name)) return;
-    clearTimeout(activeTypers.get(name));
-    activeTypers.delete(name);
-    updateHeaderTyping();
+    if(activeTypers.has(name)){
+      clearTimeout(activeTypers.get(name));
+      activeTypers.delete(name);
+      updateHeaderTyping();
+    }
   }
+
+  document.addEventListener("messageAppended", (ev) => {
+    const persona = ev.detail?.persona;
+    if(!persona?.name) return;
+    window.headerTypingStop(persona.name);
+  });
 
   /* =====================================================
      PIN SYSTEM & BROADCAST
@@ -219,7 +225,6 @@ document.addEventListener("DOMContentLoaded", () => {
       window.headerTypingStart(persona.name);
       const duration = window.TGRenderer?.calculateTypingDuration?.(message) || 1200;
       await new Promise(r=>setTimeout(r,duration));
-      window.headerTypingStop(persona.name);
     }).catch(console.error);
     return typingQueue;
   }
@@ -248,11 +253,22 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(()=>{
       window.realism.simulate();
       if(window.TGRenderer){
-        const oldJoin = window.TGRenderer.appendJoinSticker;
         window.TGRenderer.appendJoinSticker = function(names){
-          oldJoin(names);
-          names.forEach(n=>window.headerTypingStart(n));
-          setTimeout(()=>names.forEach(n=>window.headerTypingStop(n)), 1500);
+          if(!names?.length) return;
+          const container = document.getElementById("tg-comments-container");
+          const lastSticker = container?.querySelector(".tg-join-sticker:last-of-type");
+          if(lastSticker) lastSticker.remove();
+          const wrapper = document.createElement("div");
+          wrapper.className = "tg-join-sticker";
+          const textEl = document.createElement("div");
+          textEl.className = "tg-join-text";
+          textEl.textContent = names.length>3
+            ? `${names.slice(0,3).join(", ")} & ${names.length-3} others joined the chat`
+            : `${names.join(", ")} joined the chat`;
+          wrapper.appendChild(textEl);
+          container?.appendChild(wrapper);
+          if(container.scrollTop + container.clientHeight >= container.scrollHeight - 80)
+            container.scrollTop = container.scrollHeight;
         };
       }
     }, 800);
