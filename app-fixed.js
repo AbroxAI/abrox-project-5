@@ -1,4 +1,4 @@
-// app-fixed.js — FINAL Telegram 2026 Integration (multi-typer header + inline dots)
+// app-fixed.js — FINAL Telegram 2026 Integration (Header typing inline dots fixed, multiple typers)
 document.addEventListener("DOMContentLoaded", () => {
   const pinBanner = document.getElementById("tg-pin-banner");
   const container = document.getElementById("tg-comments-container");
@@ -22,6 +22,46 @@ document.addEventListener("DOMContentLoaded", () => {
     20% { opacity: 1; transform: scale(1); } 
     100% { opacity: 0; transform: scale(1); } 
   }
+
+  /* =========================
+     HEADER TYPING INLINE DOTS FIXED
+  ========================== */
+  .tg-header-typing {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 2px !important;
+    font-size: 12px;
+    color: var(--tg-muted);
+  }
+
+  .tg-header-typing .user-typing-wrapper {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .tg-header-typing .typing-dots {
+    display: inline-flex;
+    gap: 2px;
+    margin-left: 0 !important;
+  }
+
+  .tg-header-typing .typing-dots span {
+    width: 4px;
+    height: 4px;
+    background: var(--tg-accent);
+    border-radius: 50%;
+    display: inline-block;
+    animation: tgTyping 1.2s infinite;
+  }
+
+  .tg-header-typing .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .tg-header-typing .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes tgTyping {
+    0%, 80%, 100% { opacity: 0.3; transform: scale(0.7); }
+    40% { opacity: 1; transform: scale(1); }
+  }
   `;
   document.head.appendChild(style);
 
@@ -36,7 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* =====================================================
-     HEADER TYPING MANAGER (multi-typer, inline dots)
+     HEADER TYPING MANAGER (inline dots, multiple typers)
   ===================================================== */
   const activeTypers = new Map();
   const TYPING_TIMEOUT = 5000; // ms before auto-stop
@@ -67,7 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     headerTyping.classList.remove('hidden');
 
-    // Create separate wrapper per user
+    // Single wrapper with multiple user-typing elements
     names.forEach((name, index) => {
       const wrapper = document.createElement('span');
       wrapper.className = 'user-typing-wrapper';
@@ -83,7 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       headerTyping.appendChild(wrapper);
 
-      // Add comma / ampersand between names
+      // Commas and "&"
       if(index < names.length - 2){
         headerTyping.appendChild(document.createTextNode(', '));
       } else if(index === names.length - 2){
@@ -91,7 +131,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    // Add suffix
+    // Add typing text after all users
     const textNode = document.createElement('span');
     textNode.textContent = names.length === 1 ? ' is typing…' : ' are typing…';
     headerTyping.appendChild(textNode);
@@ -252,5 +292,5 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 800);
   }
 
-  console.log("✅ app-fixed.js FINAL — header typing multi-typer restored, dots inline, join stickers fixed.");
+  console.log("✅ app.js FINAL — header typing restored, inline dots fixed, multiple typers supported.");
 });
