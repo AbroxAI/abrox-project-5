@@ -1,4 +1,4 @@
-// app-fixed.js — FINAL Telegram 2026 Integration
+// app-fixed.js — FINAL Telegram 2026 Integration (Header typing inline dots fixed, multiple typers working)
 document.addEventListener("DOMContentLoaded", () => {
   const pinBanner = document.getElementById("tg-pin-banner");
   const container = document.getElementById("tg-comments-container");
@@ -30,7 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
   .tg-header-typing .user-typing-wrapper {
     display: inline-flex;
     align-items: center;
-    gap: 2px; /* smaller gap so dots sit closer to names */
+    gap: 2px;
     font-size: 12px;
     color: var(--tg-muted);
   }
@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
   .tg-header-typing .typing-dots {
     display: inline-flex;
     gap: 2px;
-    margin-left: 0; /* remove extra spacing after names */
+    margin-left: 0;
   }
 
   .tg-header-typing-inline .typing-dots span,
@@ -76,45 +76,39 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* =====================================================
-     HEADER TYPING MANAGER
-     - multiple typers
-     - inline dots fixed
-     - auto-hooks into realism & queuedTyping
+     HEADER TYPING MANAGER (inline dots, multiple typers)
   ===================================================== */
   const activeTypers = new Map();
   const TYPING_TIMEOUT = 5000; // ms
   const MAX_DISPLAY_NAMES = 3;
 
-  function formatNames(names) {
+  function formatNames(names){
     if(names.length <= MAX_DISPLAY_NAMES){
-      if(names.length === 1) return names[0];
-      if(names.length === 2) return names.join(' & ');
-      return names.slice(0, -1).join(', ') + ' & ' + names[names.length-1];
+      if(names.length===1) return names[0];
+      if(names.length===2) return names.join(' & ');
+      return names.slice(0,-1).join(', ') + ' & ' + names[names.length-1];
     } else {
       const remaining = names.length - MAX_DISPLAY_NAMES;
-      return names.slice(0, MAX_DISPLAY_NAMES).join(', ') + ` & ${remaining} other${remaining > 1 ? 's' : ''}`;
+      return names.slice(0,MAX_DISPLAY_NAMES).join(', ') + ` & ${remaining} other${remaining>1?'s':''}`;
     }
   }
 
-  function updateHeaderTyping() {
+  function updateHeaderTyping(){
     if(!headerTyping) return;
     const names = Array.from(activeTypers.keys());
     headerTyping.innerHTML = '';
-    if(names.length === 0){
+    if(names.length===0){
       headerTyping.classList.add('hidden');
-      if(headerMeta) headerMeta.textContent =
-        `${window.MEMBER_COUNT?.toLocaleString?.() || "0"} members, ` +
-        `${window.ONLINE_COUNT?.toLocaleString?.() || "0"} online`;
+      if(headerMeta) headerMeta.textContent = `${window.MEMBER_COUNT||0} members, ${window.ONLINE_COUNT||0} online`;
       return;
     }
-
     headerTyping.classList.remove('hidden');
 
     const wrapper = document.createElement('span');
     wrapper.className = 'tg-header-typing-inline';
 
     const textSpan = document.createElement('span');
-    textSpan.textContent = `${formatNames(names)} ${names.length === 1 ? 'is typing' : 'are typing'} `;
+    textSpan.textContent = `${formatNames(names)} ${names.length===1?'is typing':'are typing'} `;
     wrapper.appendChild(textSpan);
 
     const dots = document.createElement('span');
@@ -126,56 +120,18 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   window.headerTypingStart = function(name){
+    if(!name) return;
     if(activeTypers.has(name)) clearTimeout(activeTypers.get(name));
     activeTypers.set(name, setTimeout(()=>{ window.headerTypingStop(name); }, TYPING_TIMEOUT));
     updateHeaderTyping();
   }
 
   window.headerTypingStop = function(name){
-    if(activeTypers.has(name)){
-      clearTimeout(activeTypers.get(name));
-      activeTypers.delete(name);
-      updateHeaderTyping();
-    }
+    if(!activeTypers.has(name)) return;
+    clearTimeout(activeTypers.get(name));
+    activeTypers.delete(name);
+    updateHeaderTyping();
   }
-
-  document.addEventListener("messageAppended", (ev) => {
-    const persona = ev.detail?.persona;
-    if(!persona?.name) return;
-    window.headerTypingStop(persona.name);
-  });
-
-  /* =====================================================
-     GLOBAL TYPING QUEUE
-  ===================================================== */
-  let typingQueue = Promise.resolve();
-
-  function queuedTyping(persona, message){
-    if(!persona?.name) return Promise.resolve();
-    typingQueue = typingQueue.then(async ()=>{
-      window.headerTypingStart(persona.name);
-      const duration = window.TGRenderer?.calculateTypingDuration?.(message) || 1200;
-      await new Promise(r=>setTimeout(r,duration));
-    }).catch(console.error);
-    return typingQueue;
-  }
-
-  /* =====================================================
-     ADMIN AUTO RESPONSE & AUTO REPLY
-  ===================================================== */
-  document.addEventListener("sendMessage", async (ev)=>{
-    const text = ev.detail?.text || "";
-    const admin = window.identity?.Admin || { name:"Admin", avatar:"assets/admin.jpg" };
-    await queuedTyping(admin, text);
-    appendSafe(admin, "Please use the Contact Admin button in the pinned banner above.", { timestamp:new Date(), type:"incoming" });
-  });
-
-  document.addEventListener("autoReply", async (ev)=>{
-    const { parentText, persona, text } = ev.detail || {};
-    if(!persona || !text) return;
-    await queuedTyping(persona, text);
-    appendSafe(persona, text, { timestamp:new Date(), type:"incoming", replyToText:parentText });
-  });
 
   /* =====================================================
      PIN SYSTEM & BROADCAST
@@ -253,44 +209,54 @@ document.addEventListener("DOMContentLoaded", () => {
   setTimeout(()=>{ postPinNotice(); showPinBanner(broadcast.image, broadcast.id); }, 1200);
 
   /* =====================================================
-     REALISM ENGINE (Join Sticker fix + auto typing)
+     GLOBAL TYPING QUEUE
+  ===================================================== */
+  let typingQueue = Promise.resolve();
+
+  function queuedTyping(persona, message){
+    if(!persona?.name) return Promise.resolve();
+    typingQueue = typingQueue.then(async ()=>{
+      window.headerTypingStart(persona.name);
+      const duration = window.TGRenderer?.calculateTypingDuration?.(message) || 1200;
+      await new Promise(r=>setTimeout(r,duration));
+      window.headerTypingStop(persona.name);
+    }).catch(console.error);
+    return typingQueue;
+  }
+
+  /* =====================================================
+     ADMIN AUTO RESPONSE & AUTO REPLY
+  ===================================================== */
+  document.addEventListener("sendMessage", async (ev)=>{
+    const text = ev.detail?.text || "";
+    const admin = window.identity?.Admin || { name:"Admin", avatar:"assets/admin.jpg" };
+    await queuedTyping(admin, text);
+    appendSafe(admin, "Please use the Contact Admin button in the pinned banner above.", { timestamp:new Date(), type:"incoming" });
+  });
+
+  document.addEventListener("autoReply", async (ev)=>{
+    const { parentText, persona, text } = ev.detail || {};
+    if(!persona || !text) return;
+    await queuedTyping(persona, text);
+    appendSafe(persona, text, { timestamp:new Date(), type:"incoming", replyToText:parentText });
+  });
+
+  /* =====================================================
+     REALISM ENGINE (Join Sticker fix)
   ===================================================== */
   if(window.realism?.simulate){
     setTimeout(()=>{
       window.realism.simulate();
-
       if(window.TGRenderer){
-        // join sticker override
+        const oldJoin = window.TGRenderer.appendJoinSticker;
         window.TGRenderer.appendJoinSticker = function(names){
-          if(!names?.length) return;
-          const container = document.getElementById("tg-comments-container");
-          const lastSticker = container?.querySelector(".tg-join-sticker:last-of-type");
-          if(lastSticker) lastSticker.remove();
-          const wrapper = document.createElement("div");
-          wrapper.className = "tg-join-sticker";
-          const textEl = document.createElement("div");
-          textEl.className = "tg-join-text";
-          textEl.textContent = names.length>3
-            ? `${names.slice(0,3).join(", ")} & ${names.length-3} others joined the chat`
-            : `${names.join(", ")} joined the chat`;
-          wrapper.appendChild(textEl);
-          container?.appendChild(wrapper);
-          if(container.scrollTop + container.clientHeight >= container.scrollHeight - 80)
-            container.scrollTop = container.scrollHeight;
-
-          // auto typing demo for realism joins
-          names.forEach(n => window.headerTypingStart(n));
-          setTimeout(()=>{ names.forEach(n => window.headerTypingStop(n)); }, 1500);
+          oldJoin(names);
+          names.forEach(n=>window.headerTypingStart(n));
+          setTimeout(()=>names.forEach(n=>window.headerTypingStop(n)), 1500);
         };
       }
-
-      // Demo typing for realism participants
-      const demoNames = ['Alice','Bob','Charlie'];
-      demoNames.forEach(n => window.headerTypingStart(n));
-      setTimeout(()=> demoNames.forEach(n => window.headerTypingStop(n)), 2200);
-
     }, 800);
   }
 
-  console.log("✅ app.js FINAL — header typing auto-integrated, inline dots aligned, multiple typers working, join stickers fixed.");
+  console.log("✅ app.js FINAL — header typing inline dots fully inline & multiple typers fixed, join stickers fixed.");
 });
