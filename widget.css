@@ -71,7 +71,7 @@ html, body {
   object-fit: cover;
 }
 .tg-title { font-size: 15px; font-weight: 700; }
-.tg-meta { font-size: 12px; color: var(--tg-muted); margin-top: 2px; }
+.tg-meta { font-size: 12px; color: var(--tg-muted); margin-top: 2px; display: flex; align-items: center; gap: 4px; }
 
 /* =========================
    ICON BUTTONS
@@ -339,7 +339,7 @@ html, body {
 }
 
 /* =========================
-   REACTION FLOATING PILLS FIX
+   REACTION FLOATING PILLS
 ========================= */
 .tg-bubble-reactions{
   position:absolute;
@@ -350,10 +350,8 @@ html, body {
   pointer-events:none;
   z-index:3;
 }
-
 .tg-bubble.incoming .tg-bubble-reactions{ left:54px; }
 .tg-bubble.outgoing .tg-bubble-reactions{ right:10px; }
-
 .tg-bubble-reactions .reaction{
   background:#1f2c3a;
   border-radius:16px;
@@ -369,20 +367,29 @@ html, body {
 }
 
 /* =========================
-   TYPING DOTS FIX
+   TYPING DOTS FIX (Telegram 2026 style)
 ========================= */
-.tg-typing span{
-  width:6px; height:6px; border-radius:50%;
-  background:var(--tg-muted);
-  display:inline-block;
-  animation: tgTyping 1.4s infinite;
+.tg-typing-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 4px;
 }
-.tg-typing span:nth-child(2){ animation-delay:.2s; }
-.tg-typing span:nth-child(3){ animation-delay:.4s; }
+.tg-typing-dots span {
+  display: block;
+  width: 4px;
+  height: 4px;
+  background: var(--tg-muted);
+  border-radius: 50%;
+  animation: tgDotBounce 1s infinite ease-in-out;
+}
+.tg-typing-dots span:nth-child(1) { animation-delay: 0s; }
+.tg-typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.tg-typing-dots span:nth-child(3) { animation-delay: 0.4s; }
 
-@keyframes tgTyping{
-  0%,80%,100%{ opacity:.3; transform:scale(.7);}
-  40%{ opacity:1; transform:scale(1);}
+@keyframes tgDotBounce {
+  0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+  40% { transform: scale(1); opacity: 1; }
 }
 
 /* =========================
@@ -482,4 +489,3 @@ html, body {
   .tg-bubble-image { max-height: 220px; }
   .tg-pin-banner img { max-width: 50px; max-height: 50px; }
   .tg-pin-banner .pin-btn-container { flex-direction: column; align-items: flex-start; gap: 6px; }
-}
