@@ -1,9 +1,9 @@
-// ultimate-realism-full-v7.14.js — FULL ENGINE (PATCHED v8 LOGIC, SAME STRUCTURE)
+// ultimate-realism-full-v7.14.js — Full Human-Like Multi-Turn Realism Engine (MERGED JOINERS + SMOOTH SCROLL)
 (function(){
 'use strict';
 
 /* =====================================================
-   DATA POOLS
+DATA POOLS
 ===================================================== */
 const ASSETS = ["EUR/USD","USD/JPY","GBP/USD","AUD/USD","BTC/USD","ETH/USD","USD/CHF","EUR/JPY","NZD/USD",
 "US30","NAS100","SPX500","DAX30","FTSE100","GOLD","SILVER","WTI","BRENT",
@@ -23,7 +23,7 @@ const RESULT_WORDS = ["green","red","profit","loss","win","missed entry","recove
 "mean reversion hit","liquidity grab","fakeout","nice tp hit","sloppy execution"];
 
 /* =====================================================
-   FULL TEMPLATES
+FULL TEMPLATES
 ===================================================== */
 const TESTIMONIALS = [
 "Made $450 in 2 hours using Abrox","Closed 3 trades, all green today ✅",
@@ -71,7 +71,7 @@ const REPLY_TEMPLATES = [
 ];
 
 /* =====================================================
-   PERSONAS
+PERSONAS
 ===================================================== */
 const PERSONAS = [
 {name:"Alex",tone:"excited",memory:[],style:"casual"},
@@ -84,80 +84,22 @@ const PERSONAS = [
 function getRandomPersona(){ return PERSONAS[Math.floor(Math.random()*PERSONAS.length)]; }
 
 /* =====================================================
-   🔥 PATCH: CONTEXT + TOPICS
-===================================================== */
-const TOPICS = ["gold breakout","BTC pump","London session","NY open","risk management"];
-let currentTopic = TOPICS[Math.floor(Math.random()*TOPICS.length)];
-
-function contextReply(parent){
-  if(!parent) return REPLY_TEMPLATES[Math.floor(Math.random()*REPLY_TEMPLATES.length)];
-  if(parent.includes("loss")) return "Risk management matters here";
-  if(parent.includes("profit")) return "Nice, what lot size?";
-  if(parent.includes("broker")) return "Spreads are key honestly";
-  if(parent.includes("strategy")) return "Works best on M5 timeframe";
-  return REPLY_TEMPLATES[Math.floor(Math.random()*REPLY_TEMPLATES.length)];
-}
-
-function injectTopic(text){
-  if(Math.random()<0.3) return text+` (${currentTopic})`;
-  return text;
-}
-
-function maybeTag(persona){
-  if(Math.random()<0.2){
-    const other = PERSONAS[Math.floor(Math.random()*PERSONAS.length)];
-    if(other.name !== persona.name) return "@"+other.name+" ";
-  }
-  return "";
-}
-
-function avoidRepeat(persona,text){
-  let tries=0;
-  while(persona.memory.includes(text) && tries<10){
-    text += " " + ["lol","fr","ngl"][Math.floor(Math.random()*3)];
-    tries++;
-  }
-  persona.memory.push(text);
-  return text;
-}
-
-function generateTradeMessage(){
-  return `${ASSETS[Math.floor(Math.random()*ASSETS.length)]} ${TIMEFRAMES[Math.floor(Math.random()*TIMEFRAMES.length)]} — ${RESULT_WORDS[Math.floor(Math.random()*RESULT_WORDS.length)]} 💹`;
-}
-
-/* =====================================================
-   🔥 PATCH: ACTIVITY MODE
-===================================================== */
-let activityMode = "normal";
-
-function switchActivityMode(){
-  const r = Math.random();
-  if(r < 0.2) activityMode = "burst";
-  else if(r < 0.4) activityMode = "slow";
-  else activityMode = "normal";
-
-  setTimeout(switchActivityMode, 15000 + Math.random()*20000);
-}
-switchActivityMode();
-
-function randomDelay(min=1000,max=7000){
-  if(activityMode==="burst") return 500 + Math.random()*1500;
-  if(activityMode==="slow") return 5000 + Math.random()*10000;
-  return min + Math.random()*(max-min);
-}
+HUMAN TIMING
+===================================================== /
+function randomDelay(min=1000,max=7000){ return min+Math.random()(max-min); }
 
 function humanTypingDelay(text,persona){
-  let base=400, perChar=25;
-  if(persona.tone==="analytical") perChar=30;
-  if(persona.tone==="excited") perChar=18;
-  if(persona.tone==="sarcastic") perChar=22;
-  if(persona.tone==="calm") perChar=20;
-  if(persona.tone==="optimistic") perChar=19;
-  return Math.min(base+perChar*text.length,5000);
+let base=400, perChar=25;
+if(persona.tone==="analytical") perChar=30;
+if(persona.tone==="excited") perChar=18;
+if(persona.tone==="sarcastic") perChar=22;
+if(persona.tone==="calm") perChar=20;
+if(persona.tone==="optimistic") perChar=19;
+return Math.min(base+perChar*text.length,5000);
 }
 
 /* =====================================================
-   COMMENT GENERATOR (PATCHED)
+COMMENT GENERATOR
 ===================================================== */
 const GENERATED = new Set();
 const POOL = [];
@@ -165,161 +107,183 @@ window.realismEngineFullPool = POOL;
 window.realismEngineV12Pool = POOL;
 
 function mark(text){
- const fp=text.toLowerCase();
- if(GENERATED.has(fp)) return false;
- GENERATED.add(fp);
- return true;
+const fp=text.toLowerCase();
+if(GENERATED.has(fp)) return false;
+GENERATED.add(fp);
+return true;
+}
+
+function generateTimestamp(lastTimestamp=new Date()){
+return new Date(lastTimestamp.getTime()+5000+Math.random()*20000);
 }
 
 function generateComment(persona,lastTimestamp=new Date()){
 
-  let templates = [
-    ()=>TESTIMONIALS[Math.floor(Math.random()*TESTIMONIALS.length)],
-    ()=>ADDITIONAL_TEMPLATES[Math.floor(Math.random()*ADDITIONAL_TEMPLATES.length)],
-    ()=>`Anyone trading ${ASSETS[Math.floor(Math.random()*ASSETS.length)]} on ${BROKERS[Math.floor(Math.random()*BROKERS.length)]}?`,
-    ()=>OLD_MEMBER_REPLIES[Math.floor(Math.random()*OLD_MEMBER_REPLIES.length)],
-    ()=>NEW_MEMBER_QUESTIONS[Math.floor(Math.random()*NEW_MEMBER_QUESTIONS.length)],
-    ()=>ADMIN_TEMPLATES[Math.floor(Math.random()*ADMIN_TEMPLATES.length)]
-  ];
+let templates = [
+()=>`Guys, ${REPLY_TEMPLATES[Math.floor(Math.random()*REPLY_TEMPLATES.length)]}`,
+()=>`Anyone trading ${ASSETS[Math.floor(Math.random()*ASSETS.length)]} on ${BROKERS[Math.floor(Math.random()*BROKERS.length)]}?`,
+()=>`${OLD_MEMBER_REPLIES[Math.floor(Math.random()*OLD_MEMBER_REPLIES.length)]}`,
+()=>`${NEW_MEMBER_QUESTIONS[Math.floor(Math.random()*NEW_MEMBER_QUESTIONS.length)]}`,
+()=>`${ADMIN_TEMPLATES[Math.floor(Math.random()*ADMIN_TEMPLATES.length)]}`
+];
 
-  let text;
+let text = templates[Math.floor(Math.random()*templates.length)]();
 
-  if(Math.random()<0.25){
-    text = generateTradeMessage();
-  } else {
-    text = templates[Math.floor(Math.random()*templates.length)]();
-  }
+if(persona.tone==="sarcastic") text="😂 "+text;
+if(persona.tone==="analytical") text+=" 📊";
+if(persona.tone==="excited") text+=" 🚀";
 
-  text = maybeTag(persona) + text;
-  text = injectTopic(text);
-  text = avoidRepeat(persona, text);
+let meta={};
 
-  let tries=0;
-  while(!mark(text)&&tries<30){
-    text+=" "+Math.floor(Math.random()*999);
-    tries++;
-  }
+if(Math.random()<0.5)
+meta.reaction=["👍","❤️","😂","💯","🚀"][Math.floor(Math.random()*5)];
 
-  return { text, timestamp: new Date(), persona };
+persona.memory.push(text);
+
+let tries=0;
+while(!mark(text)&&tries<30){
+text+=" "+Math.floor(Math.random()*999);
+tries++;
+}
+
+return { text, timestamp: generateTimestamp(lastTimestamp), persona, meta };
 }
 
 /* =====================================================
-   (REST OF YOUR ORIGINAL CODE UNCHANGED)
+MERGED JOINERS QUEUE
 ===================================================== */
-
-// 👉 EVERYTHING BELOW IS EXACTLY YOUR ORIGINAL LOGIC
-
 let pendingJoiners = [];
 let joinerTimeout;
 
 function queueJoiner(joinerPersona) {
-  if (!joinerPersona?.name) return;
-  pendingJoiners.push(joinerPersona.name);
+if (!joinerPersona?.name) return;
+pendingJoiners.push(joinerPersona.name);
 
-  if (joinerTimeout) clearTimeout(joinerTimeout);
+if (joinerTimeout) clearTimeout(joinerTimeout);
 
-  joinerTimeout = setTimeout(() => {
-    if (window.TGRenderer?.appendJoinSticker) {
-      window.TGRenderer.appendJoinSticker(pendingJoiners);
+joinerTimeout = setTimeout(() => {
+if (window.TGRenderer?.appendJoinSticker) {
+window.TGRenderer.appendJoinSticker(pendingJoiners);
 
-      const container = document.getElementById('tg-comments-container');
-      if (container) container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
-    }
-    pendingJoiners = [];
-  }, 1200);
+const container = document.getElementById('tg-comments-container');  
+  if (container) container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });  
+}  
+pendingJoiners = [];
+
+}, 1200);
 }
 
+/* =====================================================
+QUEUE LOGIC
+===================================================== */
 const interactionQueue=[];
 let processingQueue=false;
 
 function enqueueInteraction(interaction){
- if(!interaction||!interaction.persona||!interaction.text) return;
- interactionQueue.push(interaction);
- processQueue();
+if(!interaction||!interaction.persona||!interaction.text) return;
+interactionQueue.push(interaction);
+processQueue();
 }
 
 async function processQueue(){
-  if(processingQueue||interactionQueue.length===0) return;
-  processingQueue=true;
+if(processingQueue||interactionQueue.length===0) return;
+processingQueue=true;
 
-  while(interactionQueue.length>0){
-    const inter=interactionQueue.shift();
-    const {persona,text,parentText,parentId,meta}=inter;
+while(interactionQueue.length>0){
+const inter=interactionQueue.shift();
+const {persona,text,parentText,parentId,meta}=inter;
 
-    const opts={};
-    if(parentText||parentId){
-      opts.replyToId=parentId||null;
-      opts.replyToText=parentText||null;
-    }
+const opts={};  
+if(parentText||parentId){  
+  opts.replyToId=parentId||null;  
+  opts.replyToText=parentText||null;  
+}  
+if(meta && meta.reaction){  
+  opts.reactions=[{ emoji:meta.reaction, count:1+Math.floor(Math.random()*5) }];  
+}  
 
-    if(window.TGRenderer?.appendMessage){
-      const typing=humanTypingDelay(text,persona);
-
-      if(window.TGRenderer?.showTyping){
-        window.TGRenderer.showTyping(persona.name);
-      }
-
-      await new Promise(r=>setTimeout(r,typing));
-
-      if(window.TGRenderer?.hideTyping){
-        window.TGRenderer.hideTyping(persona.name);
-      }
-
-      const id=window.TGRenderer.appendMessage(persona,text,opts);
-      inter.id=id;
-    }
-  }
-  processingQueue=false;
+if(window.TGRenderer?.appendMessage){  
+  const typing=humanTypingDelay(text,persona);  
+  await new Promise(r=>setTimeout(r,typing));  
+  const id=window.TGRenderer.appendMessage(persona,text,opts);  
+  inter.id=id;  
 }
 
+}
+processingQueue=false;
+}
+
+/* =====================================================
+MULTI-TURN REPLIES
+===================================================== */
 function simulateMultiTurnReply(joinerPersona,parentComment,depth=0){
- if(depth>3) return;
-
- let replyText = contextReply(parentComment.text);
- replyText = avoidRepeat(joinerPersona, replyText);
-
- const delay=randomDelay(2000,12000);
-
- setTimeout(()=>{
-  enqueueInteraction({ persona:joinerPersona, text:replyText, parentText:parentComment.text, parentId:parentComment.id||null });
-
-  if(Math.random()<0.3){
-    const followUp=getRandomPersona();
-    simulateMultiTurnReply(followUp,{ text:replyText, id:parentComment.id },depth+1);
-  }
- },delay);
+if(depth>3) return;
+let replyText=REPLY_TEMPLATES[Math.floor(Math.random()*REPLY_TEMPLATES.length)];
+const delay=randomDelay(2000,12000);
+setTimeout(()=>{
+enqueueInteraction({ persona:joinerPersona, text:replyText, parentText:parentComment.text, parentId:parentComment.id||null });
+joinerPersona.memory.push(replyText);
+if(Math.random()<0.3){
+const followUp=getRandomPersona();
+simulateMultiTurnReply(followUp,{ text:replyText, id:parentComment.id },depth+1);
+}
+},delay);
 }
 
+/* =====================================================
+AUTO SIMULATION LOOP (MERGED JOINERS)
+===================================================== */
 function autoSimulate(lastTimestamp=new Date()){
-  const persona=getRandomPersona();
-  let randomComment=generateComment(persona,lastTimestamp);
-  enqueueInteraction(randomComment);
+const persona=getRandomPersona();
+let randomComment=generateComment(persona,lastTimestamp);
+enqueueInteraction(randomComment);
 
-  if(Math.random()<0.08){
-    const joinCount=1+Math.floor(Math.random()*3);
-    for(let i=0;i<joinCount;i++){
-      queueJoiner(getRandomPersona());
-    }
-  }
-
-  if(Math.random()<0.25){
-    let clusterSize=1+Math.floor(Math.random()*3);
-    for(let i=1;i<clusterSize;i++){
-      let nextMsg=generateComment(persona,lastTimestamp);
-      enqueueInteraction(nextMsg);
-    }
-  }
-
-  if(Math.random()<0.15){
-    const joiner=getRandomPersona();
-    simulateMultiTurnReply(joiner,randomComment);
-  }
-
-  setTimeout(()=>autoSimulate(new Date()),randomDelay());
+// MERGED JOINERS
+if(Math.random()<0.08){
+const joinCount=1+Math.floor(Math.random()*3);
+for(let i=0;i<joinCount;i++){
+queueJoiner(getRandomPersona());
+}
 }
 
+// CLUSTERS
+if(Math.random()<0.25){
+let clusterSize=1+Math.floor(Math.random()*3);
+for(let i=1;i<clusterSize;i++){
+let nextMsg=generateComment(persona,randomComment.timestamp);
+if(Math.random()<0.4){ nextMsg.parentText=randomComment.text; nextMsg.parentId=randomComment.id; }
+nextMsg.timestamp=new Date(randomComment.timestamp.getTime()+500+Math.random()*1500);
+enqueueInteraction(nextMsg);
+randomComment=nextMsg;
+}
+}
+
+// MULTI-TURN
+if(Math.random()<0.15){
+const joiner=getRandomPersona();
+simulateMultiTurnReply(joiner,randomComment);
+}
+
+const nextDelay=randomDelay(1500,6000);
+setTimeout(()=>autoSimulate(randomComment.timestamp),nextDelay);
+}
+
+/* =====================================================
+POOL INIT
+===================================================== */
+function ensurePool(min=15000){
+let ts=new Date();
+while(POOL.length<min){
+let persona=getRandomPersona();
+let comment=generateComment(persona,ts);
+POOL.push(comment);
+ts=comment.timestamp;
+}
+}
+
+ensurePool();
 setTimeout(()=>autoSimulate(),1200);
 
-console.log("🚀 FULL ENGINE v8 PATCH (SAFE MODE) ACTIVE");
+console.log("✅ Ultimate Realism Engine Full v7.14 — MERGED joiners + smooth scrolling + reactions + multi-turn replies ready.");
 
 })();
