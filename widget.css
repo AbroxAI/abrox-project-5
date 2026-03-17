@@ -28,16 +28,31 @@ html, body {
   font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
   -webkit-font-smoothing: antialiased;
 
-  /* Official Telegram faint doodle background */
-  background: 
-    url('https://raw.githubusercontent.com/telegramdesktop/dark_doodle/main/doodle.svg') 
-    repeat;
-  background-size: 220px 220px;
+  /* ✅ FIXED: working Telegram doodle */
+  background-color: #0e1621;
+  background-image: url("https://i.ibb.co/6R2m0kC/telegram-doodle-tile.png");
+  background-repeat: repeat;
+  background-size: 260px 260px;
   background-position: center top;
   background-attachment: fixed;
-  background-color: #0e1621;
-  background-blend-mode: overlay;
 }
+
+/* ✅ NEW: overlay to make it faint like Telegram */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(14, 22, 33, 0.82); /* controls faintness */
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ✅ ensure app sits above overlay */
+#tg-comments-app {
+  position: relative;
+  z-index: 1;
+}
+
 .hidden { display: none !important; }
 
 /* =========================
@@ -414,7 +429,7 @@ html, body {
   align-items: center;
   gap: 6px;
   z-index: 80;
-  transition: all 0.28s cubic-bezier(.4,0,.2,1);
+  transition: all .28s cubic-bezier(.4,0,.2,1);
 }
 #tg-jump-indicator:hover {
   transform: translateX(-50%) translateY(-2px);
