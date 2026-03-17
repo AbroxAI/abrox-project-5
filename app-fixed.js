@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* =====================================================
-     HEADER TYPING MANAGER (multiple typers, inline dots)
+     HEADER TYPING MANAGER
   ===================================================== */
   const activeTypers = new Map();
   const TYPING_TIMEOUT = 5000; // ms before auto-stop
@@ -132,6 +132,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const persona = ev.detail?.persona;
     if(!persona?.name) return;
     window.headerTypingStop(persona.name);
+  });
+
+  /* =====================================================
+     DEMO TYPING SIMULATION
+  ===================================================== */
+  const demoUsers = ["Alice", "Bob", "Charlie"];
+  demoUsers.forEach((user, i) => {
+    setTimeout(() => window.headerTypingStart(user), 1000 + i * 1500);
+    setTimeout(() => window.headerTypingStop(user), 5000 + i * 1500);
   });
 
   /* =====================================================
