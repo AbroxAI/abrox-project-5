@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Abrox – Profit Hunters Chat</title>
+
+  <!-- Widget CSS -->
+  <link rel="stylesheet" href="widget.css" />
+
+  <style>
+    /* =========================
+       HEADER TYPING INDICATOR FIXED
+    ========================== */
+    .tg-header-typing {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--tg-muted);
+      margin-top: 2px;
+    }
+    .tg-header-typing.hidden { display: none; }
+
+    .tg-header-typing .user-typing-wrapper {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .tg-header-typing .typing-dots {
+      display: inline-flex;
+      gap: 2px;
+    }
+    .tg-header-typing .typing-dots span {
+      width: 4px;
+      height: 4px;
+      background: var(--tg-accent);
+      border-radius: 50%;
+      display: inline-block;
+      animation: blink 1.2s infinite;
+    }
+    .tg-header-typing .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .tg-header-typing .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes blink {
+      0%, 80%, 100% { opacity: 0; }
+      40% { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div id="tg-comments-app">
+
+    <!-- HEADER -->
+    <header class="tg-header" role="banner">
+      <button id="tg-back" class="tg-back-btn" aria-label="Back">
+        <i data-lucide="arrow-left"></i>
+      </button>
+
+      <div class="tg-header-center">
+        <img src="assets/logo.jpg" alt="Logo" class="tg-header-avatar" />
+        <div class="tg-header-info">
+          <div class="tg-title">🌐 Profit Hunters Chat</div>
+          <div class="tg-meta" id="tg-meta-line">1,284 members, 128 online</div>
+          <!-- Header typing indicator -->
+          <div id="tg-header-typing" class="tg-header-typing hidden"></div>
+        </div>
+      </div>
+
+      <button id="tg-options" class="tg-options-btn" aria-label="Options">
+        <i data-lucide="more-vertical"></i>
+      </button>
+    </header>
+
+    <!-- PIN BANNER -->
+    <div id="tg-pin-banner" class="tg-pin-banner hidden" role="region" aria-live="polite"></div>
+
+    <!-- CHAT CONTAINER -->
+    <main id="tg-comments-container" class="tg-comments-container" role="feed" aria-live="off"></main>
+
+    <!-- NEW MESSAGE JUMP INDICATOR -->
+    <div id="tg-jump-indicator" class="hidden" aria-hidden="true">
+      <i data-lucide="chevron-down"></i>
+      <span id="tg-jump-text">New messages</span>
+    </div>
+
+    <!-- LOCKED INPUT BAR ONLY -->
+    <div class="tg-input-wrapper" role="form" aria-label="Send a message">
+      <div class="tg-input-bar glass locked" id="tg-input-bar">
+        <i data-lucide="lock" class="tg-input-lock"></i>
+        <span class="tg-input-locked-text">Only verified members can send messages</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Scripts -->
+  <script src="identity-personas.js"></script>
+  <script src="bubble-renderer-fixed-v2.js"></script>
+  <script src="ultimate-realism-full-v7.13.js"></script>
+  <script src="interactions-v14.1-crowd-join-replies-typing-auto-hide.js"></script>
+  <script src="app-fixed.js"></script>
+
+  <!-- Header Typing Script -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const headerTyping = document.getElementById('tg-header-typing');
+      const activeTypers = new Map();
+      const TYPING_TIMEOUT = 5000; // ms before auto-stop
+      const MAX_DISPLAY_NAMES = 3;
+
+      function formatNames(names) {
+        if(names.length <= MAX_DISPLAY_NAMES){
+          if(names.length === 1) return names[0];
+          if(names.length === 2) return names.join(' and ');
+          return names.slice(0, -1).join(', ') + ', and ' + names[names.length-1];
+        } else {
+          const remaining = names.length - MAX_DISPLAY_NAMES;
+          return names.slice(0, MAX_DISPLAY_NAMES).join(', ') + `, and ${remaining} other${remaining > 1 ? 's' : ''}`;
+        }
+      }
+
+      function updateHeaderTyping() {
+        const names = Array.from(activeTypers.keys());
+        headerTyping.innerHTML = '';
+        if(names.length === 0){
+          headerTyping.classList.add('hidden');
+          return;
+        }
+
+        headerTyping.classList.remove('hidden');
+
+        names.forEach((name, index) => {
+          const wrapper = document.createElement('span');
+          wrapper.className = 'user-typing-wrapper';
+
+          const nameEl = document.createElement('span');
+          nameEl.textContent = name;
+          wrapper.appendChild(nameEl);
+
+          const dots = document.createElement('span');
+          dots.className = 'typing-dots';
+          for(let i=0;i<3;i++){
+            dots.appendChild(document.createElement('span'));
+          }
+          wrapper.appendChild(dots);
+          headerTyping.appendChild(wrapper);
+
+          // Commas and "&"
+          if(index < names.length - 2){
+            headerTyping.appendChild(document.createTextNode(', '));
+          } else if(index === names.length - 2){
+            headerTyping.appendChild(document.createTextNode(' & '));
+          }
+        });
+
+        // Add typing text after all users
+        const textNode = document.createElement('span');
+        const suffix = names.length === 1 ? ' is typing…' : ' are typing…';
+        textNode.textContent = suffix;
+        headerTyping.appendChild(textNode);
+      }
+
+      window.headerTypingStart = function(name){
+        if(activeTypers.has(name)) clearTimeout(activeTypers.get(name));
+        activeTypers.set(name, setTimeout(()=>{ window.headerTypingStop(name); }, TYPING_TIMEOUT));
+        updateHeaderTyping();
+      }
+
+      window.headerTypingStop = function(name){
+        if(activeTypers.has(name)){
+          clearTimeout(activeTypers.get(name));
+          activeTypers.delete(name);
+          updateHeaderTyping();
+        }
+      }
+
+      // Demo (remove in production)
+      // headerTypingStart('Alice');
+      // headerTypingStart('Bob');
+      // headerTypingStart('Charlie');
+      // headerTypingStart('David');
+    });
+  </script>
+</body>
+</html>
