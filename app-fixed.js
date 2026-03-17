@@ -1,4 +1,6 @@
-// app-fixed.js — FINAL Telegram 2026 Integration (Header typing dots fully inline, multiple typers fixed)
+// app-fixed.js — FINAL Telegram 2026 Integration
+// Header typing fully fixed with inline dots, multiple typers, join stickers, and pin banner
+
 document.addEventListener("DOMContentLoaded", () => {
   const pinBanner = document.getElementById("tg-pin-banner");
   const container = document.getElementById("tg-comments-container");
@@ -23,7 +25,9 @@ document.addEventListener("DOMContentLoaded", () => {
     100% { opacity: 0; transform: scale(1); } 
   }
 
-  /* HEADER TYPING INLINE DOTS FIXED */
+  /* =========================
+     HEADER TYPING INLINE DOTS FIXED
+  ========================== */
   .tg-header-typing-inline,
   .tg-header-typing .user-typing-wrapper {
     display: inline-flex;
@@ -78,18 +82,6 @@ document.addEventListener("DOMContentLoaded", () => {
   ===================================================== */
   const activeTypers = new Map();
   const TYPING_TIMEOUT = 5000; // ms before auto-stop
-  const MAX_DISPLAY_NAMES = 3;
-
-  function formatNames(names) {
-    if (names.length <= MAX_DISPLAY_NAMES) {
-      if (names.length === 1) return names[0];
-      if (names.length === 2) return names.join(' & ');
-      return names.slice(0, -1).join(', ') + ' & ' + names[names.length-1];
-    } else {
-      const remaining = names.length - MAX_DISPLAY_NAMES;
-      return names.slice(0, MAX_DISPLAY_NAMES).join(', ') + ` & ${remaining} other${remaining > 1 ? 's' : ''}`;
-    }
-  }
 
   function updateHeaderTyping() {
     if (!headerTyping) return;
@@ -98,7 +90,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (names.length === 0) {
       headerTyping.classList.add('hidden');
-      if (headerMeta) headerMeta.textContent =
+      if(headerMeta) headerMeta.textContent =
         `${window.MEMBER_COUNT?.toLocaleString?.() || "0"} members, ` +
         `${window.ONLINE_COUNT?.toLocaleString?.() || "0"} online`;
       return;
@@ -106,43 +98,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
     headerTyping.classList.remove('hidden');
 
-    // Create a separate wrapper for names + "is/are typing" + dots
-    names.forEach((name, index) => {
-      const wrapper = document.createElement('span');
-      wrapper.className = 'user-typing-wrapper';
+    // Append names with commas and & inline
+    names.forEach((name, i) => {
+      const span = document.createElement('span');
+      span.textContent = name;
+      span.className = 'user-typing-wrapper';
+      headerTyping.appendChild(span);
 
-      const nameEl = document.createElement('span');
-      nameEl.textContent = name;
-      wrapper.appendChild(nameEl);
-
-      // Add commas / & between names (except last)
-      if (index < names.length - 2) wrapper.appendChild(document.createTextNode(', '));
-      else if (index === names.length - 2) wrapper.appendChild(document.createTextNode(' & '));
-
-      headerTyping.appendChild(wrapper);
+      if (i < names.length - 2) headerTyping.appendChild(document.createTextNode(', '));
+      else if (i === names.length - 2) headerTyping.appendChild(document.createTextNode(' & '));
     });
 
-    // Add "is/are typing" and dots at the end
+    // Append "is/are typing" + dots
     const textWrapper = document.createElement('span');
     textWrapper.className = 'tg-header-typing-inline';
     textWrapper.textContent = names.length === 1 ? ' is typing ' : ' are typing ';
 
     const dots = document.createElement('span');
     dots.className = 'typing-dots';
-    for (let i = 0; i < 3; i++) dots.appendChild(document.createElement('span'));
+    for(let i=0;i<3;i++) dots.appendChild(document.createElement('span'));
     textWrapper.appendChild(dots);
 
     headerTyping.appendChild(textWrapper);
   }
 
-  window.headerTypingStart = function(name) {
-    if (activeTypers.has(name)) clearTimeout(activeTypers.get(name));
-    activeTypers.set(name, setTimeout(() => { window.headerTypingStop(name); }, TYPING_TIMEOUT));
+  window.headerTypingStart = function(name){
+    if(activeTypers.has(name)) clearTimeout(activeTypers.get(name));
+    activeTypers.set(name, setTimeout(()=>{ window.headerTypingStop(name); }, TYPING_TIMEOUT));
     updateHeaderTyping();
   }
 
-  window.headerTypingStop = function(name) {
-    if (activeTypers.has(name)) {
+  window.headerTypingStop = function(name){
+    if(activeTypers.has(name)){
       clearTimeout(activeTypers.get(name));
       activeTypers.delete(name);
       updateHeaderTyping();
@@ -151,28 +138,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.addEventListener("messageAppended", (ev) => {
     const persona = ev.detail?.persona;
-    if (!persona?.name) return;
+    if(!persona?.name) return;
     window.headerTypingStop(persona.name);
   });
 
   /* =====================================================
      PIN SYSTEM & BROADCAST
-     (unchanged from previous version)
   ===================================================== */
-  function jumpToMessage(el) {
-    if (!el) return;
+  function jumpToMessage(el){
+    if(!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "center" });
     el.classList.add("tg-highlight");
     setTimeout(() => el.classList.remove("tg-highlight"), 2600);
   }
 
-  function safeJumpById(id, retries = 6) {
+  function safeJumpById(id, retries = 6){
     const el = document.querySelector(`[data-id="${id}"]`);
-    if (el) jumpToMessage(el);
-    else if (retries > 0) setTimeout(() => safeJumpById(id, retries - 1), 200);
+    if(el) jumpToMessage(el);
+    else if(retries>0) setTimeout(()=>safeJumpById(id, retries-1), 200);
   }
 
-  function postAdminBroadcast() {
+  function postAdminBroadcast(){
     const admin = window.identity?.Admin || { name: "Admin", avatar: "assets/admin.jpg", isAdmin:true };
     const caption = `📌 Group Rules
 
@@ -188,8 +174,8 @@ document.addEventListener("DOMContentLoaded", () => {
     return { id, image };
   }
 
-  function showPinBanner(image, pinnedMessageId) {
-    if (!pinBanner) return;
+  function showPinBanner(image, pinnedMessageId){
+    if(!pinBanner) return;
     pinBanner.innerHTML = "";
     const img = document.createElement("img");
     img.src = image;
@@ -221,27 +207,27 @@ document.addEventListener("DOMContentLoaded", () => {
     pinBanner.appendChild(btnContainer);
 
     pinBanner.classList.remove("hidden");
-    requestAnimationFrame(() => pinBanner.classList.add("show"));
+    requestAnimationFrame(()=>pinBanner.classList.add("show"));
   }
 
-  function postPinNotice() {
+  function postPinNotice(){
     appendSafe({ name:"System", avatar:"assets/admin.jpg" }, "Admin pinned a message", { timestamp: new Date(), type:"incoming" });
   }
 
   const broadcast = postAdminBroadcast();
-  setTimeout(() => { postPinNotice(); showPinBanner(broadcast.image, broadcast.id); }, 1200);
+  setTimeout(()=>{ postPinNotice(); showPinBanner(broadcast.image, broadcast.id); }, 1200);
 
   /* =====================================================
      GLOBAL TYPING QUEUE
   ===================================================== */
   let typingQueue = Promise.resolve();
 
-  function queuedTyping(persona, message) {
-    if (!persona?.name) return Promise.resolve();
-    typingQueue = typingQueue.then(async () => {
+  function queuedTyping(persona, message){
+    if(!persona?.name) return Promise.resolve();
+    typingQueue = typingQueue.then(async ()=>{
       window.headerTypingStart(persona.name);
       const duration = window.TGRenderer?.calculateTypingDuration?.(message) || 1200;
-      await new Promise(r => setTimeout(r, duration));
+      await new Promise(r=>setTimeout(r,duration));
     }).catch(console.error);
     return typingQueue;
   }
@@ -249,16 +235,16 @@ document.addEventListener("DOMContentLoaded", () => {
   /* =====================================================
      ADMIN AUTO RESPONSE & AUTO REPLY
   ===================================================== */
-  document.addEventListener("sendMessage", async (ev) => {
+  document.addEventListener("sendMessage", async (ev)=>{
     const text = ev.detail?.text || "";
     const admin = window.identity?.Admin || { name:"Admin", avatar:"assets/admin.jpg" };
     await queuedTyping(admin, text);
     appendSafe(admin, "Please use the Contact Admin button in the pinned banner above.", { timestamp:new Date(), type:"incoming" });
   });
 
-  document.addEventListener("autoReply", async (ev) => {
+  document.addEventListener("autoReply", async (ev)=>{
     const { parentText, persona, text } = ev.detail || {};
-    if (!persona || !text) return;
+    if(!persona || !text) return;
     await queuedTyping(persona, text);
     appendSafe(persona, text, { timestamp:new Date(), type:"incoming", replyToText:parentText });
   });
@@ -266,30 +252,30 @@ document.addEventListener("DOMContentLoaded", () => {
   /* =====================================================
      REALISM ENGINE (Join Sticker fix)
   ===================================================== */
-  if (window.realism?.simulate) {
-    setTimeout(() => {
+  if(window.realism?.simulate){
+    setTimeout(()=>{
       window.realism.simulate();
-      if (window.TGRenderer) {
-        window.TGRenderer.appendJoinSticker = function(names) {
-          if (!names?.length) return;
+      if(window.TGRenderer){
+        window.TGRenderer.appendJoinSticker = function(names){
+          if(!names?.length) return;
           const container = document.getElementById("tg-comments-container");
           const lastSticker = container?.querySelector(".tg-join-sticker:last-of-type");
-          if (lastSticker) lastSticker.remove();
+          if(lastSticker) lastSticker.remove();
           const wrapper = document.createElement("div");
           wrapper.className = "tg-join-sticker";
           const textEl = document.createElement("div");
           textEl.className = "tg-join-text";
-          textEl.textContent = names.length > 3
+          textEl.textContent = names.length>3
             ? `${names.slice(0,3).join(", ")} & ${names.length-3} others joined the chat`
             : `${names.join(", ")} joined the chat`;
           wrapper.appendChild(textEl);
           container?.appendChild(wrapper);
-          if (container.scrollTop + container.clientHeight >= container.scrollHeight - 80)
+          if(container.scrollTop + container.clientHeight >= container.scrollHeight - 80)
             container.scrollTop = container.scrollHeight;
         };
       }
     }, 800);
   }
 
-  console.log("✅ app.js FINAL — header typing dots fully inline & multiple typers fixed, join stickers fixed.");
+  console.log("✅ app.js FINAL — header typing inline dots fully inline & multiple typers fixed, join stickers fixed.");
 });
