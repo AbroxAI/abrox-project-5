@@ -1,281 +1,505 @@
-// app-fixed.js — FINAL Telegram 2026 Integration (Header typing inline dots fixed, multiple typers)
-document.addEventListener("DOMContentLoaded", () => {
-  const pinBanner = document.getElementById("tg-pin-banner");
-  const container = document.getElementById("tg-comments-container");
-  const headerMeta = document.getElementById("tg-meta-line");
+/* widget.css — Telegram 2026 replica with full integration for bubbles, interactions & joiner simulator */
 
-  if (!container) { console.error("tg-comments-container missing in DOM"); return; }
+/* =========================
+VARIABLES
+========================= */
+:root {
+--tg-bg-main: #0e1621;
+--tg-text: #e6eef8;
+--tg-muted: #9aa7bd;
+--tg-accent: #2ea6ff;
+--tg-avatar-size: 40px;
+--tg-header-height: 58px;
+--tg-input-height: 46px;
+--tg-input-radius: 24px;
+--gold: #ffd166;
+--tg-gap: calc(var(--tg-avatar-size) * 0.7);
+--tg-nub-offset: calc(-1 * (var(--tg-gap) - 6px));
+}
 
-  /* =====================================================
-     TELEGRAM HIGHLIGHT PULSE
-  ===================================================== */
-  const style = document.createElement('style');
-  style.textContent = `
-  .tg-highlight { 
-    background-color: rgba(255, 229, 100, 0.3); 
-    border-radius: 14px; 
-    animation: tgFadePulse 2.6s ease-out forwards; 
-  } 
-  @keyframes tgFadePulse { 
-    0% { opacity: 1; transform: scale(1.02); } 
-    20% { opacity: 1; transform: scale(1); } 
-    100% { opacity: 0; transform: scale(1); } 
-  }
+/* =========================
+BASE
+========================= */
 
-  /* header typing inline dots */
-  .tg-header-typing-inline {
-    font-size: 12px;
-    color: var(--tg-muted);
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-  }
+* { box-sizing: border-box; }
+html, body {
+height: 100dvh;
+margin: 0;
+color: var(--tg-text);
+background: linear-gradient(180deg, #0e1621, #17212b);
+font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+-webkit-font-smoothing: antialiased;
+}
+.hidden { display: none !important; }
 
-  .tg-header-typing-inline .typing-dots {
-    display: inline-flex;
-    gap: 2px;
-  }
 
-  .tg-header-typing-inline .typing-dots span {
-    width: 4px;
-    height: 4px;
-    background: var(--tg-accent);
-    border-radius: 50%;
-    display: inline-block;
-    animation: tgTyping 1.2s infinite;
-  }
+/* =========================
+LAYOUT
+========================= */
+#tg-comments-app {
+display: flex;
+flex-direction: column;
+height: 100dvh;
+overflow: hidden;
+}
 
-  .tg-header-typing-inline .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-  .tg-header-typing-inline .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+/* =========================
+HEADER
+========================= */
+.tg-header {
+display: flex;
+align-items: center;
+justify-content: space-between;
+height: var(--tg-header-height);
+padding: 0 14px;
+background: rgba(23,33,43,0.78);
+backdrop-filter: blur(16px);
+position: sticky;
+top: 0;
+z-index: 60;
+}
+.tg-header-center {
+display: flex;
+align-items: center;
+gap: 10px;
+flex: 1;
+margin: 0 12px;
+min-width: 0;
+}
+.tg-header-avatar {
+width: var(--tg-avatar-size);
+height: var(--tg-avatar-size);
+border-radius: 50%;
+object-fit: cover;
+}
+.tg-title { font-size: 15px; font-weight: 700; }
+.tg-meta { font-size: 12px; color: var(--tg-muted); margin-top: 2px; display: flex; align-items: center; gap: 4px; }
 
-  @keyframes tgTyping {
-    0%, 80%, 100% { opacity: 0.3; transform: scale(0.7); }
-    40% { opacity: 1; transform: scale(1); }
-  }
-  `;
-  document.head.appendChild(style);
+/* =========================
+   HEADER TYPING INLINE DOTS
+========================= */
+.tg-header-typing {
+  font-size: 12px;
+  color: var(--tg-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 
-  /* =====================================================
-     SAFE APPEND WRAPPER
-  ===================================================== */
-  function appendSafe(persona, text, opts = {}) {
-    if (!window.TGRenderer?.appendMessage) { console.warn("TGRenderer not ready"); return null; }
-    const result = window.TGRenderer.appendMessage(persona, text, opts);
-    document.dispatchEvent(new CustomEvent("messageAppended", { detail: { persona } }));
-    return result;
-  }
+.tg-header-typing.hidden { display: none; }
 
-  /* =====================================================
-     HEADER TYPING MANAGER (inline dots, multiple typers)
-  ===================================================== */
-  const typingPersons = new Map();
+.tg-header-typing .typing-dots {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 4px; /* spacing after "is/are typing…" */
+}
 
-  document.addEventListener("headerTyping", (ev) => {
-    const name = ev.detail?.name;
-    if (!name) return;
+.tg-header-typing .typing-dots span {
+  width: 4px;
+  height: 4px;
+  background: var(--tg-accent);
+  border-radius: 50%;
+  display: inline-block;
+  animation: tgTyping 1.2s infinite;
+}
 
-    if (typingPersons.has(name)) clearTimeout(typingPersons.get(name));
+.tg-header-typing .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.tg-header-typing .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
 
-    const timeout = setTimeout(() => {
-      typingPersons.delete(name);
-      updateHeaderTyping();
-    }, 5000);
+@keyframes tgTyping {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.7); }
+  40% { opacity: 1; transform: scale(1); }
+}
 
-    typingPersons.set(name, timeout);
-    updateHeaderTyping();
-  });
+/* =========================
+   ICON BUTTONS
+========================= */
+.tg-back-btn, .tg-options-btn {
+background: none;
+border: none;
+color: #fff;
+padding: 6px;
+cursor: pointer;
+}
+.tg-back-btn i, .tg-options-btn i { width: 22px; height: 22px; }
 
-  document.addEventListener("messageAppended", (ev) => {
-    const persona = ev.detail?.persona;
-    if (!persona?.name) return;
+/* =========================
+PIN BANNER (FIXED HORIZONTAL)
+========================= */
+.tg-pin-banner {
+display: flex;
+align-items: center;
+gap: 14px;
+padding: 12px 16px;
+background: rgba(23,33,43,0.6);
+backdrop-filter: blur(16px);
+border-radius: 18px;
+color: var(--tg-text);
+font-size: 13px;
+line-height: 1.4;
+position: sticky;
+top: calc(var(--tg-header-height) + 6px);
+z-index: 55;
+max-width: 95%;
+margin: 6px auto;
+transform: translateY(-8px);
+opacity: 0;
+transition: all 320ms ease;
+word-break: break-word;
+}
+.tg-pin-banner.show {
+transform: translateY(0);
+opacity: 1;
+}
+.tg-pin-banner img {
+width: 44px;
+height: 44px;
+border-radius: 50%;
+object-fit: cover;
+flex-shrink: 0;
+}
+.tg-pin-text {
+flex: 1;
+font-size: 13px;
+line-height: 1.35;
+color: var(--tg-text);
+white-space: pre-line;
+overflow: hidden;
+text-overflow: ellipsis;
+text-align: left;
+}
+.tg-pin-banner .pin-btn-container {
+display: flex;
+gap: 8px;
+align-items: center;
+flex-shrink: 0;
+}
+.tg-pin-banner .pin-btn {
+height: 36px;
+padding: 0 16px;
+border-radius: 22px;
+border: none;
+background: var(--tg-accent);
+color: #fff;
+font-weight: 600;
+font-size: 14px;
+cursor: pointer;
+transition: all .2s ease;
+}
+.tg-pin-banner .pin-btn:hover {
+transform: translateY(-2px);
+box-shadow: 0 8px 24px rgba(46,166,255,0.4);
+}
+.tg-pin-banner .pin-btn:active { transform: scale(.95); }
 
-    if (typingPersons.has(persona.name)) {
-      clearTimeout(typingPersons.get(persona.name));
-      typingPersons.delete(persona.name);
-      updateHeaderTyping();
-    }
-  });
+/* =========================
+GLASS BUTTON (Contact Admin)
+========================= */
+.glass-btn {
+position: relative;
+display: inline-flex;
+align-items: center;
+justify-content: center;
+height: 36px;
+padding: 0 16px;
+font-size: 14px;
+font-weight: 600;
+letter-spacing: .2px;
+border-radius: 22px;
+color: #ffffff;
+text-decoration: none;
+background: linear-gradient(180deg, rgba(46,166,255,0.30) 0%, rgba(46,166,255,0.18) 45%, rgba(46,166,255,0.10) 100%);
+backdrop-filter: blur(20px) saturate(180%);
+-webkit-backdrop-filter: blur(20px) saturate(180%);
+border: 1px solid rgba(46,166,255,0.45);
+box-shadow: 0 6px 24px rgba(46,166,255,0.25), inset 0 1px 0 rgba(255,255,255,0.35);
+transition: all .28s cubic-bezier(.4,0,.2,1);
+overflow: hidden;
+}
+.glass-btn::before {
+content: '';
+position: absolute;
+top: 0;
+left: -120%;
+width: 120%;
+height: 100%;
+background: linear-gradient(120deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 100%);
+transition: all .8s ease;
+}
+.glass-btn:hover {
+transform: translateY(-2px);
+box-shadow: 0 10px 32px rgba(46,166,255,0.55), inset 0 1px 0 rgba(255,255,255,0.5);
+}
+.glass-btn:hover::before { left: 120%; }
+.glass-btn:active { transform: scale(.95); box-shadow: 0 4px 14px rgba(0,0,0,0.4), inset 0 3px 8px rgba(0,0,0,0.35); }
 
-  function updateHeaderTyping() {
-    if (!headerMeta) return;
+/* =========================
+COMMENTS CONTAINER
+========================= */
+.tg-comments-container {
+flex: 1 1 auto;
+padding: 12px;
+overflow-y: auto;
+-webkit-overflow-scrolling: touch;
+}
 
-    const names = Array.from(typingPersons.keys());
-    headerMeta.innerHTML = "";
+/* =========================
+DATE STICKER
+========================= */
+.tg-date-sticker {
+display: block;
+width: max-content;
+margin: 12px auto;
+background: rgba(255,255,255,0.04);
+padding: 6px 12px;
+border-radius: 16px;
+font-size: 12px;
+color: var(--tg-muted);
+}
 
-    if (names.length === 0) {
-      headerMeta.textContent =
-        `${window.MEMBER_COUNT?.toLocaleString?.() || "0"} members, ` +
-        `${window.ONLINE_COUNT?.toLocaleString?.() || "0"} online`;
-      return;
-    }
+/* =========================
+BUBBLE WRAPPER
+========================= */
+.tg-bubble {
+display: flex;
+align-items: flex-start;
+gap: var(--tg-gap, 28px);
+margin-bottom: 14px;
+max-width: 78%;
+position: relative;
+}
+.tg-bubble.incoming { justify-content: flex-start; }
+.tg-bubble.outgoing { flex-direction: row-reverse; margin-left: auto; }
 
-    function formatNames(arr) {
-      const maxDisplay = 3;
-      if (arr.length <= maxDisplay) {
-        if (arr.length === 1) return arr[0];
-        if (arr.length === 2) return arr.join(" & ");
-        return arr.slice(0, -1).join(", ") + " & " + arr[arr.length - 1];
-      } else {
-        const remaining = arr.length - maxDisplay;
-        return arr.slice(0, maxDisplay).join(", ") + ` & ${remaining} other${remaining > 1 ? "s" : ""}`;
-      }
-    }
+/* =========================
+AVATAR
+========================= */
+.tg-bubble-avatar {
+width: var(--tg-avatar-size);
+height: var(--tg-avatar-size);
+border-radius: 50%;
+object-fit: cover;
+flex-shrink: 0;
+display: block;
+}
 
-    // Single inline wrapper for names + "is/are typing" + dots
-    const wrapper = document.createElement("span");
-    wrapper.className = "tg-header-typing-inline";
 
-    const textSpan = document.createElement("span");
-    textSpan.textContent = `${formatNames(names)} ${names.length === 1 ? "is typing" : "are typing"} `;
-    wrapper.appendChild(textSpan);
+/* =========================
+BUBBLE CONTENT
+========================= */
+.tg-bubble-content {
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.35;
+  word-break: break-word;
+  position: relative;
+  max-width: 100%;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+  overflow: visible;
+  z-index: 1;
+  background: #182533;
+  color: var(--tg-text);
+  --bubble-tail-color: #182533;
+}
+.tg-bubble.incoming .tg-bubble-content { background: #182533; --bubble-tail-color: #182533; }
+.tg-bubble.outgoing .tg-bubble-content { background: #2b6df6; color: #fff; --bubble-tail-color: #2b6df6; }
 
-    const dots = document.createElement("span");
-    dots.className = "typing-dots";
-    for (let i = 0; i < 3; i++) { dots.appendChild(document.createElement("span")); }
-    wrapper.appendChild(dots);
+/* =========================
+   BUBBLE TAIL
+========================= */
+.tg-bubble-content::after {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 18px;
+  bottom: 2px;
+  pointer-events: none;
+  background: var(--bubble-tail-color);
+}
+.tg-bubble.incoming .tg-bubble-content::after {
+  left: -7px;
+  clip-path: polygon(100% 0, 0 100%, 100% 100%);
+}
+.tg-bubble.outgoing .tg-bubble-content::after {
+  right: -7px;
+  transform: scaleX(-1);
+  clip-path: polygon(100% 0, 0 100%, 100% 100%);
+}
 
-    headerMeta.appendChild(wrapper);
-  }
+/* =========================
+   SENDER COLORS
+========================= */
+.tg-bubble-sender {
+  font-weight: 600;
+  margin-bottom: 2px;
+  font-size: 13px;
+}
+.tg-bubble-sender[data-color="1"] { color:#2ea6ff; }
+.tg-bubble-sender[data-color="2"] { color:#ff6b6b; }
+.tg-bubble-sender[data-color="3"] { color:#ffb86c; }
+.tg-bubble-sender[data-color="4"] { color:#8be9fd; }
+.tg-bubble-sender[data-color="5"] { color:#50fa7b; }
+.tg-bubble-sender[data-color="6"] { color:#ff79c6; }
+.tg-bubble-sender[data-color="7"] { color:#bd93f9; }
+.tg-bubble-sender[data-color="8"] { color:#f1fa8c; }
+.tg-bubble-sender[data-color="9"] { color:#ff5555; }
+.tg-bubble-sender[data-color="10"] { color:#6272a4; }
+.tg-bubble-sender[data-color="11"] { color:#ff6e96; }
+.tg-bubble-sender[data-color="12"] { color:#8affff; }
+.tg-bubble-sender[data-color="13"] { color:#ffde6d; }
+.tg-bubble-sender[data-color="14"] { color:#5aff7a; }
+.tg-bubble-sender[data-color="15"] { color:#d16fff; }
 
-  /* =====================================================
-     PIN SYSTEM & BROADCAST
-  ===================================================== */
-  function jumpToMessage(el) {
-    if (!el) return;
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    el.classList.add("tg-highlight");
-    setTimeout(() => el.classList.remove("tg-highlight"), 2600);
-  }
+/* =========================
+   REPLY PREVIEW
+========================= */
+.tg-reply-preview {
+  background: rgba(255, 255, 255, 0.06);
+  border-left: 3px solid var(--tg-accent);
+  padding: 4px 8px;
+  margin-bottom: 6px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--tg-muted);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.tg-reply-preview:hover { background: rgba(46,166,255,0.15); }
 
-  function safeJumpById(id, retries = 6) {
-    const el = document.querySelector(`[data-id="${id}"]`);
-    if (el) jumpToMessage(el);
-    else if (retries > 0) setTimeout(() => safeJumpById(id, retries - 1), 200);
-  }
+/* =========================
+   META TIMESTAMP
+========================= */
+.tg-bubble-meta {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--tg-muted);
+  margin-top: 2px;
+}
 
-  function postAdminBroadcast() {
-    const admin = window.identity?.Admin || { name: "Admin", avatar: "assets/admin.jpg", isAdmin: true };
-    const caption = `📌 Group Rules
+/* =========================
+   REACTION FLOATING PILLS
+========================= */
+.tg-bubble-reactions{
+  position:absolute;
+  bottom:-12px;
+  display:flex;
+  gap:4px;
+  padding:2px;
+  pointer-events:none;
+  z-index:3;
+}
+.tg-bubble.incoming .tg-bubble-reactions{ left:54px; }
+.tg-bubble.outgoing .tg-bubble-reactions{ right:10px; }
+.tg-bubble-reactions .reaction{
+  background:#1f2c3a;
+  border-radius:16px;
+  font-size:11px;
+  padding:2px 6px;
+  display:flex;
+  align-items:center;
+  gap:3px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.35);
+  border:1px solid rgba(255,255,255,0.08);
+  backdrop-filter:blur(6px);
+  pointer-events:auto;
+}
 
-1️⃣ New members are read-only until verified.
-2️⃣ Admins do NOT DM directly.
-3️⃣ 🚫 No screenshots in chat.
-4️⃣ ⚠️ Ignore unsolicited messages.
+/* =========================
+   NEW MESSAGE BLUE PILL
+========================= */
+#tg-jump-indicator {
+  position: fixed;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--tg-accent);
+  color: #fff;
+  padding: 6px 16px;
+  border-radius: 24px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.32);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 80;
+  transition: all 0.28s cubic-bezier(.4,0,.2,1);
+}
+#tg-jump-indicator:hover {
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow: 0 10px 24px rgba(46,166,255,0.5);
+}
+#tg-jump-indicator i { width: 16px; height: 16px; stroke-width: 3; }
+#tg-jump-indicator.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(8px);
+}
+#tg-jump-text { white-space: nowrap; }
 
-✅ To verify or contact admin, use the Contact Admin button below.`;
-    const image = "assets/broadcast.jpg";
-    const timestamp = new Date();
-    const id = appendSafe(admin, "", { timestamp, type: "incoming", image, caption });
-    return { id, image };
-  }
+/* =========================
+   INPUT BAR
+========================= */
+.tg-input-wrapper {
+  padding: 8px 12px;
+  background: transparent;
+  backdrop-filter: blur(16px);
+  position: sticky;
+  bottom: 0;
+  z-index: 60;
+}
+.tg-input-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(23,33,43,0.85);
+  border-radius: var(--tg-input-radius);
+  padding: 6px 12px;
+  backdrop-filter: blur(12px);
+  transition: all .2s ease;
+}
+.tg-input-bar:hover { background: rgba(23,33,43,0.95); }
+.tg-comment-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #e6eef8;
+  font-size: 14px;
+}
 
-  function showPinBanner(image, pinnedMessageId) {
-    if (!pinBanner) return;
-    pinBanner.innerHTML = "";
+/* =========================
+   JOIN STICKER (Telegram 2026 style)
+========================= */
+.tg-join-sticker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 18px;
+  font-size: 12px;
+  font-weight: 500;
+  background: rgba(46,166,255,0.18);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  margin: 4px 0;
+  max-width: fit-content;
+  white-space: nowrap;
+  animation: joinSlideIn 0.4s ease-out;
+}
+@keyframes joinSlideIn {
+  0% { opacity: 0; transform: translateY(-8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
 
-    const img = document.createElement("img");
-    img.src = image;
-    img.onerror = () => (img.src = "assets/admin.jpg");
-
-    const text = document.createElement("div");
-    text.className = "tg-pin-text";
-    text.textContent = "📌 Group Rules";
-
-    const blueBtn = document.createElement("button");
-    blueBtn.className = "pin-btn";
-    blueBtn.textContent = "View Pinned";
-    blueBtn.onclick = () => pinnedMessageId && safeJumpById(pinnedMessageId);
-
-    const adminBtn = document.createElement("a");
-    adminBtn.className = "glass-btn";
-    adminBtn.href = window.CONTACT_ADMIN_LINK || "https://t.me/";
-    adminBtn.target = "_blank";
-    adminBtn.rel = "noopener";
-    adminBtn.textContent = "Contact Admin";
-
-    const btnContainer = document.createElement("div");
-    btnContainer.className = "pin-btn-container";
-    btnContainer.appendChild(blueBtn);
-    btnContainer.appendChild(adminBtn);
-
-    pinBanner.appendChild(img);
-    pinBanner.appendChild(text);
-    pinBanner.appendChild(btnContainer);
-
-    pinBanner.classList.remove("hidden");
-    requestAnimationFrame(() => pinBanner.classList.add("show"));
-  }
-
-  function postPinNotice() {
-    appendSafe(
-      { name: "System", avatar: "assets/admin.jpg" },
-      "Admin pinned a message",
-      { timestamp: new Date(), type: "incoming" }
-    );
-  }
-
-  const broadcast = postAdminBroadcast();
-  setTimeout(() => { postPinNotice(); showPinBanner(broadcast.image, broadcast.id); }, 1200);
-
-  /* =====================================================
-     GLOBAL TYPING QUEUE
-  ===================================================== */
-  let typingQueue = Promise.resolve();
-
-  function queuedTyping(persona, message) {
-    if (!persona?.name) return Promise.resolve();
-    typingQueue = typingQueue.then(async () => {
-      document.dispatchEvent(new CustomEvent("headerTyping", { detail: { name: persona.name } }));
-      const duration = window.TGRenderer?.calculateTypingDuration?.(message) || 1200;
-      await new Promise(r => setTimeout(r, duration));
-    }).catch(console.error);
-    return typingQueue;
-  }
-
-  /* =====================================================
-     ADMIN AUTO RESPONSE & AUTO REPLY
-  ===================================================== */
-  document.addEventListener("sendMessage", async (ev) => {
-    const text = ev.detail?.text || "";
-    const admin = window.identity?.Admin || { name: "Admin", avatar: "assets/admin.jpg" };
-    await queuedTyping(admin, text);
-    appendSafe(admin, "Please use the Contact Admin button in the pinned banner above.", { timestamp: new Date(), type: "incoming" });
-  });
-
-  document.addEventListener("autoReply", async (ev) => {
-    const { parentText, persona, text } = ev.detail || {};
-    if (!persona || !text) return;
-    await queuedTyping(persona, text);
-    appendSafe(persona, text, { timestamp: new Date(), type: "incoming", replyToText: parentText });
-  });
-
-  /* =====================================================
-     REALISM ENGINE (Join Sticker fix)
-  ===================================================== */
-  if (window.realism?.simulate) {
-    setTimeout(() => {
-      window.realism.simulate();
-      if (window.TGRenderer) {
-        window.TGRenderer.appendJoinSticker = function(names) {
-          if (!names?.length) return;
-          const container = document.getElementById("tg-comments-container");
-          const lastSticker = container?.querySelector(".tg-join-sticker:last-of-type");
-          if (lastSticker) lastSticker.remove();
-          const wrapper = document.createElement("div");
-          wrapper.className = "tg-join-sticker";
-          const textEl = document.createElement("div");
-          textEl.className = "tg-join-text";
-          textEl.textContent = names.length > 3
-            ? `${names.slice(0,3).join(", ")} & ${names.length-3} others joined the chat`
-            : `${names.join(", ")} joined the chat`;
-          wrapper.appendChild(textEl);
-          container?.appendChild(wrapper);
-          if (container.scrollTop + container.clientHeight >= container.scrollHeight - 80)
-            container.scrollTop = container.scrollHeight;
-        };
-      }
-    }, 800);
-  }
-
-  console.log("✅ app.js FINAL — header typing inline dots fully inline & multiple typers fixed, join stickers fixed.");
-});
+/* =========================
+   RESPONSIVE
+========================= */
+@media (max-width: 520px) {
+  .tg-bubble { max-width: 86%; }
+  .tg-bubble-image { max-height: 220px; }
+  .tg-pin-banner img { max-width: 50px; max-height: 50px; }
+  .tg-pin-banner .pin-btn-container { flex-direction: column; align-items: flex-start; gap: 6px; }
+}
