@@ -130,191 +130,150 @@ function getRandomPersona(){ return PERSONAS[Math.floor(Math.random()*PERSONAS.l
 /* =====================================================
 HUMAN TIMING
 ===================================================== */
-function randomDelay(min=1000,max=7000){
-return min + Math.random() * (max - min);
-}
-
+function randomDelay(min=1000,max=7000){ return min + Math.random() * (max - min); }
 function humanTypingDelay(text,persona){
-let base=400, perChar=25;
-if(persona.tone==="analytical") perChar=30;
-if(persona.tone==="excited") perChar=18;
-if(persona.tone==="sarcastic") perChar=22;
-if(persona.tone==="calm") perChar=20;
-if(persona.tone==="optimistic") perChar=19;
-return Math.min(base+perChar*text.length,5000);
+  let base=400, perChar=25;
+  if(persona.tone==="analytical") perChar=30;
+  if(persona.tone==="excited") perChar=18;
+  if(persona.tone==="sarcastic") perChar=22;
+  if(persona.tone==="calm") perChar=20;
+  if(persona.tone==="optimistic") perChar=19;
+  return Math.min(base+perChar*text.length,5000);
 }
 
 /* =====================================================
-COMMENT GENERATOR
+COMMENT GENERATOR PATCH — FULL TEMPLATE + THREADS
 ===================================================== */
 const GENERATED = new Set();
 const MAX_GENERATED = 5000;
-
 const POOL = [];
 window.realismEngineFullPool = POOL;
 window.realismEngineV12Pool = POOL;
 
 function mark(text){
-const fp=text.toLowerCase();
-if(GENERATED.has(fp)) return false;
-GENERATED.add(fp);
-
-if(GENERATED.size > MAX_GENERATED){
-const first = GENERATED.values().next().value;
-GENERATED.delete(first);
+  const fp=text.toLowerCase();
+  if(GENERATED.has(fp)) return false;
+  GENERATED.add(fp);
+  if(GENERATED.size > MAX_GENERATED){
+    const first = GENERATED.values().next().value;
+    GENERATED.delete(first);
+  }
+  return true;
 }
-return true;
+
+const GLOBAL_CTX = { history: [], topicCount: {}, trend: null };
+function updateGlobalContext(text){
+  GLOBAL_CTX.history.push(text);
+  if(GLOBAL_CTX.history.length>100) GLOBAL_CTX.history.shift();
+  text.toLowerCase().split(/\W+/).forEach(w=>{
+    if(w.length>3) GLOBAL_CTX.topicCount[w]=(GLOBAL_CTX.topicCount[w]||0)+1;
+  });
+  if(Math.random()<0.2){
+    let sorted = Object.entries(GLOBAL_CTX.topicCount).sort((a,b)=>b[1]-a[1]);
+    if(sorted.length) GLOBAL_CTX.trend = sorted[0][0];
+  }
 }
 
-function generateTimestamp(lastTimestamp=new Date()){
-return new Date(lastTimestamp.getTime()+5000+Math.random()*20000);
+function humanize(text){
+  if(Math.random()>0.25) return text;
+  let words=text.split(" ");
+  let i=Math.floor(Math.random()*words.length);
+  if(words[i] && words[i].length>4) words[i]=words[i].slice(0,-1)+words[i].slice(-1).toUpperCase();
+  return words.join(" ");
+}
+
+function applyEmotion(persona,text){
+  if(!persona.emotion) persona.emotion="neutral";
+  if(/loss|stopped|hit/.test(text)) persona.emotion="frustrated";
+  else if(/profit|win|green/.test(text)) persona.emotion="happy";
+  if(persona.emotion==="frustrated") return text+" 😤";
+  if(persona.emotion==="happy") return text+" 😄";
+  return text;
+}
+
+function smartPick(arr, memory=[]){
+  let filtered = arr.filter(x=>!memory.includes(x));
+  if(!filtered.length) filtered = arr;
+  let pick = filtered[Math.floor(Math.random()*filtered.length)];
+  memory.push(pick);
+  if(memory.length>50) memory.shift();
+  return pick;
 }
 
 function applyPersonaStyle(text, persona){
-switch(persona.style){
-case "casual": return text.toLowerCase();
-case "professional": return text.replace("Guys,", "Hello everyone,");
-case "funny": return text + " 😂";
-case "supportive": return "No worries — " + text;
-case "cheerful": return "✨ " + text;
-default: return text;
+  switch(persona.style){
+    case "casual": return text.toLowerCase();
+    case "professional": return text.replace("Guys,", "Hello everyone,");
+    case "funny": return text+" 😂";
+    case "supportive": return "No worries — "+text;
+    case "cheerful": return "✨ "+text;
+    default: return text;
+  }
 }
 
-/* =====================================================
-ULTRA REALISM PATCH v9.1 — FULL TEMPLATE USAGE
-===================================================== */
+function generateTimestamp(lastTimestamp=new Date()){ return new Date(lastTimestamp.getTime()+5000+Math.random()*20000); }
 
-/* ---------- SMART RANDOM PICK (ANTI-REPEAT) ---------- */
-function smartPick(arr, memory = []) {
-let filtered = arr.filter(x => !memory.includes(x));
-if (!filtered.length) filtered = arr;
-let pick = filtered[Math.floor(Math.random() * filtered.length)];
-memory.push(pick);
-if (memory.length > 30) memory.shift();
-return pick;
+function generateComment(persona,lastMessage=null,lastTimestamp=new Date()){
+  let poolFuncs = [
+    ()=>smartPick(TESTIMONIALS,persona.memory),
+    ()=>smartPick(ADDITIONAL_TEMPLATES,persona.memory),
+    ()=>smartPick(OLD_MEMBER_REPLIES,persona.memory),
+    ()=>smartPick(NEW_MEMBER_QUESTIONS,persona.memory),
+    ()=>smartPick(ADMIN_TEMPLATES,persona.memory),
+    ()=>`Anyone trading ${smartPick(ASSETS,persona.memory)} on ${smartPick(BROKERS,persona.memory)}?`,
+    ()=>`Result was ${smartPick(RESULT_WORDS,persona.memory)} on ${smartPick(ASSETS,persona.memory)}`
+  ];
+  
+  let text;
+  if(lastMessage && Math.random()<0.7){
+    text = smartPick(REPLY_TEMPLATES,persona.memory) + " — " + smartPick(poolFuncs.map(f=>f()),persona.memory);
+  } else {
+    text = smartPick(poolFuncs.map(f=>f()),persona.memory);
+  }
+
+  if(persona.tone==="sarcastic") text="😂 "+text;
+  if(persona.tone==="analytical") text+=" 📊";
+  if(persona.tone==="excited") text+=" 🚀";
+  text = applyPersonaStyle(text,persona);
+  text = humanize(text);
+  text = applyEmotion(persona,text);
+  if(GLOBAL_CTX.trend && Math.random()<0.3) text += ` (${GLOBAL_CTX.trend})`;
+
+  persona.memory.push(text);
+  if(persona.memory.length>50) persona.memory.shift();
+
+  let tries=0;
+  while(!mark(text)&&tries<20){ text+=" "+Math.floor(Math.random()*999); tries++; }
+
+  updateGlobalContext(text);
+  return { text, timestamp: generateTimestamp(lastTimestamp), persona };
 }
 
-/* ---------- GLOBAL CONTEXT ---------- */
-const GLOBAL_CTX = {
-history: [],
-topicCount: {},
-trend: null
-};
-
-function updateGlobalContext(text){
-GLOBAL_CTX.history.push(text);
-if(GLOBAL_CTX.history.length > 100) GLOBAL_CTX.history.shift();
-
-text.toLowerCase().split(/\W+/).forEach(w=>{
-if(w.length > 3){
-GLOBAL_CTX.topicCount[w]=(GLOBAL_CTX.topicCount[w]||0)+1;
-}
-});
-
-if(Math.random()<0.2){
-let sorted = Object.entries(GLOBAL_CTX.topicCount).sort((a,b)=>b[1]-a[1]);
-if(sorted.length) GLOBAL_CTX.trend = sorted[0][0];
-}
-}
-
-/* ---------- HUMANIZER ---------- */
-function humanize(text){
-if(Math.random()>0.25) return text;
-let words=text.split(" ");
-let i=Math.floor(Math.random()*words.length);
-if(words[i] && words[i].length>4){
-words[i]=words[i].slice(0,-1)+words[i].slice(-1).toUpperCase();
-}
-return words.join(" ");
-}
-
-/* ---------- EMOTION ---------- */
-function applyEmotion(persona,text){
-if(!persona.emotion) persona.emotion="neutral";
-
-if(/loss|stopped|hit/.test(text)) persona.emotion="frustrated";
-else if(/profit|win|green/.test(text)) persona.emotion="happy";
-
-if(persona.emotion==="frustrated") return text+" 😤";
-if(persona.emotion==="happy") return text+" 😄";
-
-return text;
-}
-
-/* ---------- ADVANCED TEMPLATE MIX ---------- */
-const __origGenerate = generateComment;
-
-generateComment = function(persona,lastTimestamp){
-
-let templates = [
-()=>smartPick(TESTIMONIALS, persona.memory),
-()=>smartPick(ADDITIONAL_TEMPLATES, persona.memory),
-()=>smartPick(OLD_MEMBER_REPLIES, persona.memory),
-()=>smartPick(NEW_MEMBER_QUESTIONS, persona.memory),
-()=>smartPick(ADMIN_TEMPLATES, persona.memory),
-()=>`Anyone trading ${smartPick(ASSETS, persona.memory)} on ${smartPick(BROKERS, persona.memory)}?`,
-()=>`Result was ${smartPick(RESULT_WORDS, persona.memory)} on ${smartPick(ASSETS, persona.memory)}`
-];
-
-let text = templates[Math.floor(Math.random()*templates.length)]();
-
-/* persona tone */
-if(persona.tone==="sarcastic") text="😂 "+text;
-if(persona.tone==="analytical") text+=" 📊";
-if(persona.tone==="excited") text+=" 🚀";
-
-/* apply style */
-text = applyPersonaStyle(text, persona);
-
-/* human imperfections */
-text = humanize(text);
-
-/* emotion */
-text = applyEmotion(persona,text);
-
-/* trend injection */
-if(GLOBAL_CTX.trend && Math.random()<0.3){
-text += ` (${GLOBAL_CTX.trend})`;
-}
-
-/* meta */
-let meta={};
-if(Math.random()<0.6){
-meta.reaction=["👍","❤️","😂","💯","🔥","🚀"][Math.floor(Math.random()*6)];
-}
-
-/* memory */
-persona.memory.push(text);
-if(persona.memory.length>30) persona.memory.shift();
-
-/* anti-duplicate */
-let tries=0;
-while(!mark(text)&&tries<20){
-text+=" "+Math.floor(Math.random()*999);
-tries++;
-}
-
-updateGlobalContext(text);
-
-return { text, timestamp: generateTimestamp(lastTimestamp), persona, meta };
-};
-
-/* =====================================================
-POOL INIT
-===================================================== */
 function ensurePool(min=15000){
-let ts=new Date();
-while(POOL.length<min){
-let persona=getRandomPersona();
-let comment=generateComment(persona,ts);
-POOL.push(comment);
-ts=comment.timestamp;
+  let ts = new Date();
+  let lastMessage = null;
+  while(POOL.length<min){
+    let persona=getRandomPersona();
+    let comment=generateComment(persona,lastMessage,ts);
+    POOL.push(comment);
+    lastMessage = comment;
+    ts = comment.timestamp;
+  }
 }
+
+function autoSimulate(){
+  let index=0;
+  function postNext(){
+    if(index>=POOL.length) return;
+    let comment=POOL[index++];
+    console.log(`[${comment.timestamp.toLocaleTimeString()}] ${comment.persona.name}: ${comment.text}`);
+    setTimeout(postNext, randomDelay(800,4000));
+  }
+  postNext();
 }
 
 ensurePool();
 setTimeout(()=>autoSimulate(),1200);
-
-console.log("✅ Ultimate Realism Engine v9.1 — FULL TEMPLATE, NO REPEATS, ULTRA-REALISTIC");
+console.log("✅ Ultimate Realism Engine v9.1 PATCHED — FULL TEMPLATE, MULTI-TURN THREADS, ULTRA-REALISTIC");
 
 })();
