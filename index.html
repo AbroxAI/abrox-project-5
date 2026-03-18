@@ -104,10 +104,6 @@
       const inputBar = document.getElementById('tg-input-bar');
       if(inputBar) inputBar.classList.add('locked');
 
-      // Add a test message to verify chat loads
-      const testPersona = { name: "System Test", avatar: "https://via.placeholder.com/40", isAdmin: true };
-      window.TGRenderer.appendMessage(testPersona, "✅ Chat system initialized and ready!");
-
       // Optional: listen to header typing
       document.addEventListener('headerTyping', (e) => {
         console.log(e.detail.name + " is typing…");
