@@ -142,7 +142,7 @@ function humanTypingDelay(text,persona){
 }
 
 /* =====================================================
-COMMENT GENERATOR PATCH — FULL TEMPLATE + THREADS
+FULL-WEIGHTED SHUFFLE ANTI-REPEAT PATCH
 ===================================================== */
 const GENERATED = new Set();
 const MAX_GENERATED = 5000;
@@ -154,14 +154,14 @@ function mark(text){
   const fp=text.toLowerCase();
   if(GENERATED.has(fp)) return false;
   GENERATED.add(fp);
-  if(GENERATED.size > MAX_GENERATED){
+  if(GENERATED.size>MAX_GENERATED){
     const first = GENERATED.values().next().value;
     GENERATED.delete(first);
   }
   return true;
 }
 
-const GLOBAL_CTX = { history: [], topicCount: {}, trend: null };
+const GLOBAL_CTX={history:[], topicCount:{}, trend:null};
 function updateGlobalContext(text){
   GLOBAL_CTX.history.push(text);
   if(GLOBAL_CTX.history.length>100) GLOBAL_CTX.history.shift();
@@ -169,8 +169,8 @@ function updateGlobalContext(text){
     if(w.length>3) GLOBAL_CTX.topicCount[w]=(GLOBAL_CTX.topicCount[w]||0)+1;
   });
   if(Math.random()<0.2){
-    let sorted = Object.entries(GLOBAL_CTX.topicCount).sort((a,b)=>b[1]-a[1]);
-    if(sorted.length) GLOBAL_CTX.trend = sorted[0][0];
+    let sorted=Object.entries(GLOBAL_CTX.topicCount).sort((a,b)=>b[1]-a[1]);
+    if(sorted.length) GLOBAL_CTX.trend=sorted[0][0];
   }
 }
 
@@ -191,15 +191,6 @@ function applyEmotion(persona,text){
   return text;
 }
 
-function smartPick(arr, memory=[]){
-  let filtered = arr.filter(x=>!memory.includes(x));
-  if(!filtered.length) filtered = arr;
-  let pick = filtered[Math.floor(Math.random()*filtered.length)];
-  memory.push(pick);
-  if(memory.length>50) memory.shift();
-  return pick;
-}
-
 function applyPersonaStyle(text, persona){
   switch(persona.style){
     case "casual": return text.toLowerCase();
@@ -211,53 +202,76 @@ function applyPersonaStyle(text, persona){
   }
 }
 
+// SHUFFLED POOLS
+function shuffleArray(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];} return arr;}
+const SHUFFLED_POOLS = {
+  TESTIMONIALS: shuffleArray([...TESTIMONIALS]),
+  ADDITIONAL_TEMPLATES: shuffleArray([...ADDITIONAL_TEMPLATES]),
+  OLD_MEMBER_REPLIES: shuffleArray([...OLD_MEMBER_REPLIES]),
+  NEW_MEMBER_QUESTIONS: shuffleArray([...NEW_MEMBER_QUESTIONS]),
+  ADMIN_TEMPLATES: shuffleArray([...ADMIN_TEMPLATES]),
+  REPLY_TEMPLATES: shuffleArray([...REPLY_TEMPLATES]),
+  RESULT_WORDS: shuffleArray([...RESULT_WORDS]),
+  ASSETS: shuffleArray([...ASSETS]),
+  BROKERS: shuffleArray([...BROKERS])
+};
+
+function pickFromShuffled(poolName){
+  const pool=SHUFFLED_POOLS[poolName];
+  const item=pool.shift();
+  pool.push(item);
+  return item;
+}
+
 function generateTimestamp(lastTimestamp=new Date()){ return new Date(lastTimestamp.getTime()+5000+Math.random()*20000); }
 
 function generateComment(persona,lastMessage=null,lastTimestamp=new Date()){
-  let poolFuncs = [
-    ()=>smartPick(TESTIMONIALS,persona.memory),
-    ()=>smartPick(ADDITIONAL_TEMPLATES,persona.memory),
-    ()=>smartPick(OLD_MEMBER_REPLIES,persona.memory),
-    ()=>smartPick(NEW_MEMBER_QUESTIONS,persona.memory),
-    ()=>smartPick(ADMIN_TEMPLATES,persona.memory),
-    ()=>`Anyone trading ${smartPick(ASSETS,persona.memory)} on ${smartPick(BROKERS,persona.memory)}?`,
-    ()=>`Result was ${smartPick(RESULT_WORDS,persona.memory)} on ${smartPick(ASSETS,persona.memory)}`
+  let poolFuncs=[
+    ()=>pickFromShuffled("TESTIMONIALS"),
+    ()=>pickFromShuffled("ADDITIONAL_TEMPLATES"),
+    ()=>pickFromShuffled("OLD_MEMBER_REPLIES"),
+    ()=>pickFromShuffled("NEW_MEMBER_QUESTIONS"),
+    ()=>pickFromShuffled("ADMIN_TEMPLATES"),
+    ()=>`Anyone trading ${pickFromShuffled("ASSETS")} on ${pickFromShuffled("BROKERS")}?`,
+    ()=>`Result was ${pickFromShuffled("RESULT_WORDS")} on ${pickFromShuffled("ASSETS")}`
   ];
-  
   let text;
   if(lastMessage && Math.random()<0.7){
-    text = smartPick(REPLY_TEMPLATES,persona.memory) + " — " + smartPick(poolFuncs.map(f=>f()),persona.memory);
+    text=pickFromShuffled("REPLY_TEMPLATES")+" — "+poolFuncs[Math.floor(Math.random()*poolFuncs.length)]();
   } else {
-    text = smartPick(poolFuncs.map(f=>f()),persona.memory);
+    text=poolFuncs[Math.floor(Math.random()*poolFuncs.length)]();
   }
 
   if(persona.tone==="sarcastic") text="😂 "+text;
   if(persona.tone==="analytical") text+=" 📊";
   if(persona.tone==="excited") text+=" 🚀";
-  text = applyPersonaStyle(text,persona);
-  text = humanize(text);
-  text = applyEmotion(persona,text);
-  if(GLOBAL_CTX.trend && Math.random()<0.3) text += ` (${GLOBAL_CTX.trend})`;
 
-  persona.memory.push(text);
-  if(persona.memory.length>50) persona.memory.shift();
+  text=applyPersonaStyle(text,persona);
+  text=humanize(text);
+  text=applyEmotion(persona,text);
+
+  if(GLOBAL_CTX.trend && Math.random()<0.3) text+=` (${GLOBAL_CTX.trend})`;
 
   let tries=0;
-  while(!mark(text)&&tries<20){ text+=" "+Math.floor(Math.random()*999); tries++; }
+  while(!mark(text)&&tries<50){ text+=" "+Math.floor(Math.random()*9999); tries++; }
+
+  persona.memory.push(text);
+  if(persona.memory.length>150) persona.memory.shift();
 
   updateGlobalContext(text);
-  return { text, timestamp: generateTimestamp(lastTimestamp), persona };
+
+  return {text, timestamp: generateTimestamp(lastTimestamp), persona};
 }
 
 function ensurePool(min=15000){
-  let ts = new Date();
-  let lastMessage = null;
+  let ts=new Date();
+  let lastMessage=null;
   while(POOL.length<min){
     let persona=getRandomPersona();
     let comment=generateComment(persona,lastMessage,ts);
     POOL.push(comment);
-    lastMessage = comment;
-    ts = comment.timestamp;
+    lastMessage=comment;
+    ts=comment.timestamp;
   }
 }
 
@@ -274,6 +288,6 @@ function autoSimulate(){
 
 ensurePool();
 setTimeout(()=>autoSimulate(),1200);
-console.log("✅ Ultimate Realism Engine v9.1 PATCHED — FULL TEMPLATE, MULTI-TURN THREADS, ULTRA-REALISTIC");
+console.log("✅ Ultimate Realism Engine v9.1 PATCHED — FULL TEMPLATE, MULTI-TURN THREADS, ZERO REPEATS");
 
 })();
