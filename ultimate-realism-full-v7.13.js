@@ -1,4 +1,4 @@
-// ultimate-realism-full-v9.1.js — Full Human-Like Multi-Turn Realism Engine (FULL PATCHED)
+// ultimate-realism-full-v9.1.js — Full Human-Like Multi-Turn Realism Engine (FULL PATCHED & STYLED)
 (function(){
 'use strict';
 
@@ -146,7 +146,7 @@ function randomDelay(min=800,max=5000){
 }
 
 /* =====================================================
-COMMENT GENERATOR
+COMMENT GENERATOR & POOL
 ===================================================== */
 const GENERATED = new Set();
 const MAX_GENERATED = 5000;
@@ -230,7 +230,6 @@ function generateComment(persona,lastMessage=null,lastTimestamp=new Date()){
   ];
 
   let text;
-  // 20% chance to reply, mostly independent
   if(lastMessage && Math.random()<0.2){ 
     text = smartPick(REPLY_TEMPLATES, persona.memory) + " — " + smartPick(poolFuncs.map(f=>f()), persona.memory);
   } else {
@@ -260,7 +259,7 @@ function generateComment(persona,lastMessage=null,lastTimestamp=new Date()){
 }
 
 /* =====================================================
-POOL & SIMULATION
+POOL FILL
 ===================================================== */
 function ensurePool(min=15000){
   let ts = new Date();
@@ -274,20 +273,31 @@ function ensurePool(min=15000){
   }
 }
 
+/* =====================================================
+RENDERING — Telegram-style Bubbles
+===================================================== */
 function renderComment(comment){
-  let chat = document.getElementById("chat");
+  const chat = document.getElementById("tg-comments-container");
   if(!chat) return;
-  let div = document.createElement("div");
-  div.innerHTML = `<strong>${comment.persona.name}:</strong> ${comment.text} ${comment.meta.reaction||''}`;
+
+  const div = document.createElement("div");
+  div.className = "tg-bubble";
+  div.innerHTML = `
+    <strong>${comment.persona.name}:</strong> ${comment.text} 
+    <span class="tg-reaction">${comment.meta.reaction||''}</span>
+  `;
   chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight; // auto-scroll
+  chat.scrollTop = chat.scrollHeight;
 }
 
+/* =====================================================
+SIMULATION
+===================================================== */
 function autoSimulate(){
   let index=0;
   function postNext(){
     if(index>=POOL.length) return;
-    let comment=POOL[index++];
+    const comment=POOL[index++];
     window.currentPersona = comment.persona;
     renderComment(comment);
     setTimeout(postNext, randomDelay());
@@ -295,8 +305,11 @@ function autoSimulate(){
   postNext();
 }
 
+/* =====================================================
+INITIALIZATION
+===================================================== */
 ensurePool();
 setTimeout(()=>autoSimulate(),1200);
-console.log("✅ Ultimate Realism Engine v9.1 FULL PATCHED — ALL TEMPLATES, INDEPENDENT COMMENTS, REACTIONS, GITHUB-FRIENDLY");
+console.log("✅ Ultimate Realism Engine v9.1 FULL PATCHED & STYLED — All templates restored, TG-style chat, reactions, multi-persona active");
 
 })();
