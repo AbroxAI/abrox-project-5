@@ -1,4 +1,4 @@
-// ultimate-realism-full-v9.1.js — Full Human-Like Multi-Turn Realism Engine (FULL PATCHED & STYLED)
+// ultimate-realism-full-v9.1-merged.js — Full Human-Like Multi-Turn Realism Engine (FULL PATCHED + FULL TEMPLATES)
 (function(){
 'use strict';
 
@@ -23,7 +23,7 @@ const RESULT_WORDS = ["green","red","profit","loss","win","missed entry","recove
 "mean reversion hit","liquidity grab","fakeout","nice tp hit","sloppy execution"];
 
 /* =====================================================
-FULL TEMPLATES
+FULL TEMPLATES (v9.1)
 ===================================================== */
 const TESTIMONIALS = [
 "Made $450 in 2 hours using Abrox","Closed 3 trades, all green today ✅",
@@ -128,7 +128,7 @@ const PERSONAS = [
 function getRandomPersona(){ return PERSONAS[Math.floor(Math.random()*PERSONAS.length)]; }
 
 /* =====================================================
-HUMAN TIMING & DELAYS
+HUMAN TIMING & DELAYS + TYPING
 ===================================================== */
 function randomDelay(min=800,max=5000){
   let delay = min + Math.random()*(max-min);
@@ -145,80 +145,37 @@ function randomDelay(min=800,max=5000){
   return Math.round(delay);
 }
 
+function humanTypingDelay(text,persona){
+  let base=400, perChar=25;
+  if(persona.tone==="analytical") perChar=30;
+  if(persona.tone==="excited") perChar=18;
+  if(persona.tone==="sarcastic") perChar=22;
+  if(persona.tone==="calm") perChar=20;
+  if(persona.tone==="optimistic") perChar=19;
+  return Math.min(base+perChar*text.length,5000);
+}
+
 /* =====================================================
-COMMENT GENERATOR & POOL
+COMMENT GENERATOR
 ===================================================== */
 const GENERATED = new Set();
-const MAX_GENERATED = 5000;
 const POOL = [];
 window.realismEngineFullPool = POOL;
+window.realismEngineV12Pool = POOL;
 
 function mark(text){
   const fp=text.toLowerCase();
   if(GENERATED.has(fp)) return false;
   GENERATED.add(fp);
-  if(GENERATED.size>MAX_GENERATED){
-    const first = GENERATED.values().next().value;
-    GENERATED.delete(first);
-  }
+  if(GENERATED.size>5000) GENERATED.delete(GENERATED.values().next().value);
   return true;
 }
 
-const GLOBAL_CTX = { history: [], topicCount: {}, trend: null };
-function updateGlobalContext(text){
-  GLOBAL_CTX.history.push(text);
-  if(GLOBAL_CTX.history.length>100) GLOBAL_CTX.history.shift();
-  text.toLowerCase().split(/\W+/).forEach(w=>{
-    if(w.length>3) GLOBAL_CTX.topicCount[w]=(GLOBAL_CTX.topicCount[w]||0)+1;
-  });
-  if(Math.random()<0.2){
-    let sorted = Object.entries(GLOBAL_CTX.topicCount).sort((a,b)=>b[1]-a[1]);
-    if(sorted.length) GLOBAL_CTX.trend = sorted[0][0];
-  }
+function generateTimestamp(lastTimestamp=new Date()){
+  return new Date(lastTimestamp.getTime()+5000+Math.random()*20000);
 }
 
-function humanize(text){
-  if(Math.random()>0.25) return text;
-  let words=text.split(" ");
-  let i=Math.floor(Math.random()*words.length);
-  if(words[i] && words[i].length>4) words[i]=words[i].slice(0,-1)+words[i].slice(-1).toUpperCase();
-  return words.join(" ");
-}
-
-function applyEmotion(persona,text){
-  if(!persona.emotion) persona.emotion="neutral";
-  if(/loss|stopped|hit/.test(text)) persona.emotion="frustrated";
-  else if(/profit|win|green/.test(text)) persona.emotion="happy";
-  if(persona.emotion==="frustrated") return text+" 😤";
-  if(persona.emotion==="happy") return text+" 😄";
-  return text;
-}
-
-function smartPick(arr, memory=[]){
-  let filtered = arr.filter(x=>!memory.includes(x));
-  if(!filtered.length) filtered = arr;
-  let pick = filtered[Math.floor(Math.random()*filtered.length)];
-  memory.push(pick);
-  if(memory.length>50) memory.shift();
-  return pick;
-}
-
-function applyPersonaStyle(text, persona){
-  switch(persona.style){
-    case "casual": return text.toLowerCase();
-    case "professional": return text.replace("Guys,", "Hello everyone,");
-    case "funny": return text+" 😂";
-    case "supportive": return "No worries — "+text;
-    case "cheerful": return "✨ "+text;
-    default: return text;
-  }
-}
-
-function generateTimestamp(lastTimestamp=new Date()){ 
-  return new Date(lastTimestamp.getTime()+5000+Math.random()*20000); 
-}
-
-function generateComment(persona,lastMessage=null,lastTimestamp=new Date()){
+function generateComment(persona,lastTimestamp=new Date()){
   let poolFuncs = [
     ()=>smartPick(TESTIMONIALS,persona.memory),
     ()=>smartPick(ADDITIONAL_TEMPLATES,persona.memory),
@@ -230,7 +187,7 @@ function generateComment(persona,lastMessage=null,lastTimestamp=new Date()){
   ];
 
   let text;
-  if(lastMessage && Math.random()<0.2){ 
+  if(Math.random()<0.2){
     text = smartPick(REPLY_TEMPLATES, persona.memory) + " — " + smartPick(poolFuncs.map(f=>f()), persona.memory);
   } else {
     text = smartPick(poolFuncs.map(f=>f()), persona.memory);
@@ -240,17 +197,11 @@ function generateComment(persona,lastMessage=null,lastTimestamp=new Date()){
   if(persona.tone==="analytical") text+=" 📊";
   if(persona.tone==="excited") text+=" 🚀";
 
-  text = applyPersonaStyle(text,persona);
-  text = humanize(text);
-  text = applyEmotion(persona,text);
-  if(GLOBAL_CTX.trend && Math.random()<0.3) text += ` (${GLOBAL_CTX.trend})`;
-
   persona.memory.push(text);
   if(persona.memory.length>150) persona.memory.shift();
 
   let tries=0;
   while(!mark(text)&&tries<50){ text+=" "+Math.floor(Math.random()*9999); tries++; }
-  updateGlobalContext(text);
 
   let meta={};
   if(Math.random()<0.6){ meta.reaction=["👍","❤️","😂","💯","🔥","🚀"][Math.floor(Math.random()*6)]; }
@@ -258,58 +209,133 @@ function generateComment(persona,lastMessage=null,lastTimestamp=new Date()){
   return { text, timestamp: generateTimestamp(lastTimestamp), persona, meta };
 }
 
+function smartPick(arr, memory=[]){
+  let filtered = arr.filter(x=>!memory.includes(x));
+  if(!filtered.length) filtered = arr;
+  let pick = filtered[Math.floor(Math.random()*filtered.length)];
+  memory.push(pick);
+  if(memory.length>50) memory.shift();
+  return pick;
+}
+
 /* =====================================================
-POOL FILL
+MERGED JOINERS QUEUE & QUEUE LOGIC
+===================================================== */
+let pendingJoiners = [];
+let joinerTimeout;
+function queueJoiner(joinerPersona) {
+  if (!joinerPersona?.name) return;
+  pendingJoiners.push(joinerPersona.name);
+  if (joinerTimeout) clearTimeout(joinerTimeout);
+  joinerTimeout = setTimeout(() => {
+    if (window.TGRenderer?.appendJoinSticker) {
+      window.TGRenderer.appendJoinSticker(pendingJoiners);
+      const container = document.getElementById('tg-comments-container');  
+      if (container) container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });  
+    }  
+    pendingJoiners = [];
+  }, 1200);
+}
+
+const interactionQueue=[];
+let processingQueue=false;
+
+function enqueueInteraction(interaction){
+  if(!interaction||!interaction.persona||!interaction.text) return;
+  interactionQueue.push(interaction);
+  processQueue();
+}
+
+async function processQueue(){
+  if(processingQueue||interactionQueue.length===0) return;
+  processingQueue=true;
+  while(interactionQueue.length>0){
+    const inter=interactionQueue.shift();
+    const {persona,text,parentText,parentId,meta}=inter;
+    const opts={};
+    if(parentText||parentId){
+      opts.replyToId=parentId||null;
+      opts.replyToText=parentText||null;
+    }
+    if(meta && meta.reaction){
+      opts.reactions=[{ emoji:meta.reaction, count:1+Math.floor(Math.random()*5) }];
+    }
+    if(window.TGRenderer?.appendMessage){
+      const typing=humanTypingDelay(text,persona);
+      await new Promise(r=>setTimeout(r,typing));
+      const id=window.TGRenderer.appendMessage(persona,text,opts);
+      inter.id=id;
+    }
+  }
+  processingQueue=false;
+}
+
+/* =====================================================
+MULTI-TURN REPLIES
+===================================================== */
+function simulateMultiTurnReply(joinerPersona,parentComment,depth=0){
+  if(depth>3) return;
+  let replyText=REPLY_TEMPLATES[Math.floor(Math.random()*REPLY_TEMPLATES.length)];
+  const delay=randomDelay(2000,12000);
+  setTimeout(()=>{
+    enqueueInteraction({ persona:joinerPersona, text:replyText, parentText:parentComment.text, parentId:parentComment.id||null });
+    joinerPersona.memory.push(replyText);
+    if(Math.random()<0.3){
+      const followUp=getRandomPersona();
+      simulateMultiTurnReply(followUp,{ text:replyText, id:parentComment.id },depth+1);
+    }
+  },delay);
+}
+
+/* =====================================================
+AUTO SIMULATION LOOP
+===================================================== */
+function autoSimulate(lastTimestamp=new Date()){
+  const persona=getRandomPersona();
+  let randomComment=generateComment(persona,lastTimestamp);
+  enqueueInteraction(randomComment);
+
+  if(Math.random()<0.08){
+    const joinCount=1+Math.floor(Math.random()*3);
+    for(let i=0;i<joinCount;i++){
+      queueJoiner(getRandomPersona());
+    }
+  }
+
+  if(Math.random()<0.25){
+    let clusterSize=1+Math.floor(Math.random()*3);
+    for(let i=1;i<clusterSize;i++){
+      let nextMsg=generateComment(persona,randomComment.timestamp);
+      if(Math.random()<0.4){ nextMsg.parentText=randomComment.text; nextMsg.parentId=randomComment.id; }
+      nextMsg.timestamp=new Date(randomComment.timestamp.getTime()+500+Math.random()*1500);
+      enqueueInteraction(nextMsg);
+      randomComment=nextMsg;
+    }
+  }
+
+  if(Math.random()<0.15){
+    const joiner=getRandomPersona();
+    simulateMultiTurnReply(joiner,randomComment);
+  }
+
+  const nextDelay=randomDelay(1500,6000);
+  setTimeout(()=>autoSimulate(randomComment.timestamp),nextDelay);
+}
+
+/* =====================================================
+POOL INIT
 ===================================================== */
 function ensurePool(min=15000){
-  let ts = new Date();
-  let lastMessage = null;
+  let ts=new Date();
   while(POOL.length<min){
     let persona=getRandomPersona();
-    let comment=generateComment(persona,lastMessage,ts);
+    let comment=generateComment(persona,ts);
     POOL.push(comment);
-    lastMessage = comment;
-    ts = comment.timestamp;
+    ts=comment.timestamp;
   }
 }
 
-/* =====================================================
-RENDERING — Telegram-style Bubbles
-===================================================== */
-function renderComment(comment){
-  const chat = document.getElementById("tg-comments-container");
-  if(!chat) return;
-
-  const div = document.createElement("div");
-  div.className = "tg-bubble";
-  div.innerHTML = `
-    <strong>${comment.persona.name}:</strong> ${comment.text} 
-    <span class="tg-reaction">${comment.meta.reaction||''}</span>
-  `;
-  chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
-}
-
-/* =====================================================
-SIMULATION
-===================================================== */
-function autoSimulate(){
-  let index=0;
-  function postNext(){
-    if(index>=POOL.length) return;
-    const comment=POOL[index++];
-    window.currentPersona = comment.persona;
-    renderComment(comment);
-    setTimeout(postNext, randomDelay());
-  }
-  postNext();
-}
-
-/* =====================================================
-INITIALIZATION
-===================================================== */
 ensurePool();
 setTimeout(()=>autoSimulate(),1200);
-console.log("✅ Ultimate Realism Engine v9.1 FULL PATCHED & STYLED — All templates restored, TG-style chat, reactions, multi-persona active");
-
+console.log("✅ Ultimate Realism Engine FULL PATCHED + FULL TEMPLATES — MERGED joiners, smooth scrolling, multi-turn replies, typing, reactions ready.");
 })();
