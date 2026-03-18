@@ -1,4 +1,4 @@
-// ultimate-realism-full-v7.14.js — Full Human-Like Multi-Turn Realism Engine (FULL TEMPLATE EXPANDED - FINAL)
+// ultimate-realism-full-v9.1.js — Full Human-Like Multi-Turn Realism Engine (FULL TEMPLATE + FULL POOLS)
 (function(){
 'use strict';
 
@@ -179,207 +179,125 @@ case "supportive": return "No worries — " + text;
 case "cheerful": return "✨ " + text;
 default: return text;
 }
+
+/* =====================================================
+ULTRA REALISM PATCH v9.1 — FULL TEMPLATE USAGE
+===================================================== */
+
+/* ---------- SMART RANDOM PICK (ANTI-REPEAT) ---------- */
+function smartPick(arr, memory = []) {
+let filtered = arr.filter(x => !memory.includes(x));
+if (!filtered.length) filtered = arr;
+let pick = filtered[Math.floor(Math.random() * filtered.length)];
+memory.push(pick);
+if (memory.length > 30) memory.shift();
+return pick;
 }
 
-function contextualReply(parentText){
-if(!parentText) return REPLY_TEMPLATES[Math.floor(Math.random()*REPLY_TEMPLATES.length)];
-if(parentText.includes("broker")) return "I use it too, spreads are decent 👍";
-if(parentText.includes("loss")) return "Same happened to me, risk management is key";
-if(parentText.includes("profit")) return "Nice! What was your entry point?";
-if(parentText.includes("strategy")) return "That strategy works well in trending markets";
-return REPLY_TEMPLATES[Math.floor(Math.random()*REPLY_TEMPLATES.length)];
+/* ---------- GLOBAL CONTEXT ---------- */
+const GLOBAL_CTX = {
+history: [],
+topicCount: {},
+trend: null
+};
+
+function updateGlobalContext(text){
+GLOBAL_CTX.history.push(text);
+if(GLOBAL_CTX.history.length > 100) GLOBAL_CTX.history.shift();
+
+text.toLowerCase().split(/\W+/).forEach(w=>{
+if(w.length > 3){
+GLOBAL_CTX.topicCount[w]=(GLOBAL_CTX.topicCount[w]||0)+1;
+}
+});
+
+if(Math.random()<0.2){
+let sorted = Object.entries(GLOBAL_CTX.topicCount).sort((a,b)=>b[1]-a[1]);
+if(sorted.length) GLOBAL_CTX.trend = sorted[0][0];
+}
 }
 
-function generateComment(persona,lastTimestamp=new Date()){
+/* ---------- HUMANIZER ---------- */
+function humanize(text){
+if(Math.random()>0.25) return text;
+let words=text.split(" ");
+let i=Math.floor(Math.random()*words.length);
+if(words[i] && words[i].length>4){
+words[i]=words[i].slice(0,-1)+words[i].slice(-1).toUpperCase();
+}
+return words.join(" ");
+}
+
+/* ---------- EMOTION ---------- */
+function applyEmotion(persona,text){
+if(!persona.emotion) persona.emotion="neutral";
+
+if(/loss|stopped|hit/.test(text)) persona.emotion="frustrated";
+else if(/profit|win|green/.test(text)) persona.emotion="happy";
+
+if(persona.emotion==="frustrated") return text+" 😤";
+if(persona.emotion==="happy") return text+" 😄";
+
+return text;
+}
+
+/* ---------- ADVANCED TEMPLATE MIX ---------- */
+const __origGenerate = generateComment;
+
+generateComment = function(persona,lastTimestamp){
+
 let templates = [
-()=>`Guys, ${REPLY_TEMPLATES[Math.floor(Math.random()*REPLY_TEMPLATES.length)]}`,
-()=>`Anyone trading ${ASSETS[Math.floor(Math.random()*ASSETS.length)]} on ${BROKERS[Math.floor(Math.random()*BROKERS.length)]}?`,
-()=>`${OLD_MEMBER_REPLIES[Math.floor(Math.random()*OLD_MEMBER_REPLIES.length)]}`,
-()=>`${NEW_MEMBER_QUESTIONS[Math.floor(Math.random()*NEW_MEMBER_QUESTIONS.length)]}`,
-()=>`${ADMIN_TEMPLATES[Math.floor(Math.random()*ADMIN_TEMPLATES.length)]}`
+()=>smartPick(TESTIMONIALS, persona.memory),
+()=>smartPick(ADDITIONAL_TEMPLATES, persona.memory),
+()=>smartPick(OLD_MEMBER_REPLIES, persona.memory),
+()=>smartPick(NEW_MEMBER_QUESTIONS, persona.memory),
+()=>smartPick(ADMIN_TEMPLATES, persona.memory),
+()=>`Anyone trading ${smartPick(ASSETS, persona.memory)} on ${smartPick(BROKERS, persona.memory)}?`,
+()=>`Result was ${smartPick(RESULT_WORDS, persona.memory)} on ${smartPick(ASSETS, persona.memory)}`
 ];
 
 let text = templates[Math.floor(Math.random()*templates.length)]();
 
+/* persona tone */
 if(persona.tone==="sarcastic") text="😂 "+text;
 if(persona.tone==="analytical") text+=" 📊";
 if(persona.tone==="excited") text+=" 🚀";
 
+/* apply style */
 text = applyPersonaStyle(text, persona);
 
+/* human imperfections */
+text = humanize(text);
+
+/* emotion */
+text = applyEmotion(persona,text);
+
+/* trend injection */
+if(GLOBAL_CTX.trend && Math.random()<0.3){
+text += ` (${GLOBAL_CTX.trend})`;
+}
+
+/* meta */
 let meta={};
-if(Math.random()<0.5)
-meta.reaction=["👍","❤️","😂","💯","🚀"][Math.floor(Math.random()*5)];
+if(Math.random()<0.6){
+meta.reaction=["👍","❤️","😂","💯","🔥","🚀"][Math.floor(Math.random()*6)];
+}
 
+/* memory */
 persona.memory.push(text);
+if(persona.memory.length>30) persona.memory.shift();
 
+/* anti-duplicate */
 let tries=0;
-while(!mark(text)&&tries<30){
+while(!mark(text)&&tries<20){
 text+=" "+Math.floor(Math.random()*999);
 tries++;
 }
 
+updateGlobalContext(text);
+
 return { text, timestamp: generateTimestamp(lastTimestamp), persona, meta };
-}
-
-/* =====================================================
-JOINERS
-===================================================== */
-let pendingJoiners = [];
-let joinerTimeout;
-
-function queueJoiner(joinerPersona) {
-if (!joinerPersona?.name) return;
-pendingJoiners.push(joinerPersona.name);
-
-if (joinerTimeout) clearTimeout(joinerTimeout);
-
-joinerTimeout = setTimeout(() => {
-if (window.TGRenderer?.appendJoinSticker) {
-window.TGRenderer.appendJoinSticker(pendingJoiners);
-
-const container = document.getElementById('tg-comments-container');
-if (container) {
-requestAnimationFrame(()=>{
-container.scrollTop = container.scrollHeight;
-});
-}
-}
-pendingJoiners = [];
-}, 1200);
-}
-
-/* =====================================================
-QUEUE SYSTEM
-===================================================== */
-const interactionQueue=[];
-let processingQueue=false;
-
-async function simulateTyping(persona, duration){
-if(window.TGRenderer?.showTyping){
-window.TGRenderer.showTyping(persona.name);
-}
-await new Promise(r=>setTimeout(r,duration));
-if(window.TGRenderer?.hideTyping){
-window.TGRenderer.hideTyping(persona.name);
-}
-}
-
-function enqueueInteraction(interaction){
-if(!interaction||!interaction.persona||!interaction.text) return;
-interactionQueue.push(interaction);
-processQueue();
-}
-
-async function processQueue(){
-if(processingQueue||interactionQueue.length===0) return;
-processingQueue=true;
-
-while(interactionQueue.length>0){
-const inter=interactionQueue.shift();
-const {persona,text,parentText,parentId,meta}=inter;
-
-const opts={};
-
-if(parentText||parentId){
-opts.replyToId=parentId||null;
-opts.replyToText=parentText||null;
-}
-
-if(meta && meta.reaction){
-opts.reactions=[{ emoji:meta.reaction, count:1+Math.floor(Math.random()*5) }];
-}
-
-if(window.TGRenderer?.appendMessage){
-const typing=humanTypingDelay(text,persona);
-await simulateTyping(persona, typing);
-const id=window.TGRenderer.appendMessage(persona,text,opts);
-inter.id=id;
-}
-}
-
-processingQueue=false;
-}
-
-/* =====================================================
-MULTI TURN
-===================================================== */
-function simulateMultiTurnReply(joinerPersona,parentComment,depth=0){
-if(depth>3) return;
-
-let replyText=contextualReply(parentComment.text);
-
-const delay=randomDelay(2000,12000);
-
-setTimeout(()=>{
-enqueueInteraction({
-persona:joinerPersona,
-text:replyText,
-parentText:parentComment.text,
-parentId:parentComment.id||null
-});
-
-joinerPersona.memory.push(replyText);
-
-if(Math.random()<0.3){
-const followUp=getRandomPersona();
-simulateMultiTurnReply(followUp,{ text:replyText, id:parentComment.id },depth+1);
-}
-},delay);
-}
-
-/* =====================================================
-TIME ACTIVITY
-===================================================== */
-function getTimeBasedActivityMultiplier(){
-const hour=new Date().getHours();
-if(hour<6) return 0.3;
-if(hour<9) return 0.6;
-if(hour<17) return 1.2;
-if(hour<22) return 1.5;
-return 0.8;
-}
-
-/* =====================================================
-MAIN LOOP
-===================================================== */
-function autoSimulate(lastTimestamp=new Date()){
-const persona=getRandomPersona();
-let randomComment=generateComment(persona,lastTimestamp);
-
-enqueueInteraction(randomComment);
-
-if(Math.random()<0.08){
-const joinCount=1+Math.floor(Math.random()*3);
-for(let i=0;i<joinCount;i++){
-queueJoiner(getRandomPersona());
-}
-}
-
-if(Math.random()<0.25){
-let clusterSize=1+Math.floor(Math.random()*3);
-for(let i=1;i<clusterSize;i++){
-let nextMsg=generateComment(persona,randomComment.timestamp);
-if(Math.random()<0.4){
-nextMsg.parentText=randomComment.text;
-nextMsg.parentId=randomComment.id;
-}
-nextMsg.timestamp=new Date(randomComment.timestamp.getTime()+500+Math.random()*1500);
-enqueueInteraction(nextMsg);
-randomComment=nextMsg;
-}
-}
-
-if(Math.random()<0.15){
-const joiner=getRandomPersona();
-simulateMultiTurnReply(joiner,randomComment);
-}
-
-const activity=getTimeBasedActivityMultiplier();
-const nextDelay=randomDelay(1500,6000)/activity;
-
-setTimeout(()=>autoSimulate(randomComment.timestamp),nextDelay);
-}
+};
 
 /* =====================================================
 POOL INIT
@@ -397,6 +315,6 @@ ts=comment.timestamp;
 ensurePool();
 setTimeout(()=>autoSimulate(),1200);
 
-console.log("✅ Ultimate Realism Engine v7.14 FINAL — fully expanded, stable, ultra-realistic.");
+console.log("✅ Ultimate Realism Engine v9.1 — FULL TEMPLATE, NO REPEATS, ULTRA-REALISTIC");
 
 })();
