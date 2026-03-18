@@ -1,4 +1,4 @@
-// ultimate-realism-full-v9.1.js — Full Human-Like Multi-Turn Realism Engine (PATCHED)
+// ultimate-realism-full-v9.1.js — Full Human-Like Multi-Turn Realism Engine (FULL PATCHED)
 (function(){
 'use strict';
 
@@ -23,7 +23,7 @@ const RESULT_WORDS = ["green","red","profit","loss","win","missed entry","recove
 "mean reversion hit","liquidity grab","fakeout","nice tp hit","sloppy execution"];
 
 /* =====================================================
-FULL TEMPLATES (EXPANDED)
+FULL TEMPLATES
 ===================================================== */
 const TESTIMONIALS = [
 "Made $450 in 2 hours using Abrox","Closed 3 trades, all green today ✅",
@@ -128,7 +128,7 @@ const PERSONAS = [
 function getRandomPersona(){ return PERSONAS[Math.floor(Math.random()*PERSONAS.length)]; }
 
 /* =====================================================
-HUMAN TIMING PATCHED
+HUMAN TIMING & DELAYS
 ===================================================== */
 function randomDelay(min=800,max=5000){
   let delay = min + Math.random()*(max-min);
@@ -145,24 +145,13 @@ function randomDelay(min=800,max=5000){
   return Math.round(delay);
 }
 
-function humanTypingDelay(text,persona){
-  let base=400, perChar=25;
-  if(persona.tone==="analytical") perChar=30;
-  if(persona.tone==="excited") perChar=18;
-  if(persona.tone==="sarcastic") perChar=22;
-  if(persona.tone==="calm") perChar=20;
-  if(persona.tone==="optimistic") perChar=19;
-  return Math.min(base+perChar*text.length,5000);
-}
-
 /* =====================================================
-COMMENT GENERATOR PATCHED
+COMMENT GENERATOR
 ===================================================== */
 const GENERATED = new Set();
 const MAX_GENERATED = 5000;
 const POOL = [];
 window.realismEngineFullPool = POOL;
-window.realismEngineV12Pool = POOL;
 
 function mark(text){
   const fp=text.toLowerCase();
@@ -225,7 +214,9 @@ function applyPersonaStyle(text, persona){
   }
 }
 
-function generateTimestamp(lastTimestamp=new Date()){ return new Date(lastTimestamp.getTime()+5000+Math.random()*20000); }
+function generateTimestamp(lastTimestamp=new Date()){ 
+  return new Date(lastTimestamp.getTime()+5000+Math.random()*20000); 
+}
 
 function generateComment(persona,lastMessage=null,lastTimestamp=new Date()){
   let poolFuncs = [
@@ -239,9 +230,8 @@ function generateComment(persona,lastMessage=null,lastTimestamp=new Date()){
   ];
 
   let text;
-
-  // PATCH: reply frequency reduced to 50% (was 70%)
-  if(lastMessage && Math.random()<0.5){
+  // 20% chance to reply, mostly independent
+  if(lastMessage && Math.random()<0.2){ 
     text = smartPick(REPLY_TEMPLATES, persona.memory) + " — " + smartPick(poolFuncs.map(f=>f()), persona.memory);
   } else {
     text = smartPick(poolFuncs.map(f=>f()), persona.memory);
@@ -250,28 +240,28 @@ function generateComment(persona,lastMessage=null,lastTimestamp=new Date()){
   if(persona.tone==="sarcastic") text="😂 "+text;
   if(persona.tone==="analytical") text+=" 📊";
   if(persona.tone==="excited") text+=" 🚀";
+
   text = applyPersonaStyle(text,persona);
   text = humanize(text);
   text = applyEmotion(persona,text);
   if(GLOBAL_CTX.trend && Math.random()<0.3) text += ` (${GLOBAL_CTX.trend})`;
 
-  // memory
   persona.memory.push(text);
   if(persona.memory.length>150) persona.memory.shift();
 
-  // anti-duplicate
   let tries=0;
   while(!mark(text)&&tries<50){ text+=" "+Math.floor(Math.random()*9999); tries++; }
-
   updateGlobalContext(text);
 
-  // preserve meta/reactions intact
   let meta={};
   if(Math.random()<0.6){ meta.reaction=["👍","❤️","😂","💯","🔥","🚀"][Math.floor(Math.random()*6)]; }
 
   return { text, timestamp: generateTimestamp(lastTimestamp), persona, meta };
 }
 
+/* =====================================================
+POOL & SIMULATION
+===================================================== */
 function ensurePool(min=15000){
   let ts = new Date();
   let lastMessage = null;
@@ -284,13 +274,22 @@ function ensurePool(min=15000){
   }
 }
 
+function renderComment(comment){
+  let chat = document.getElementById("chat");
+  if(!chat) return;
+  let div = document.createElement("div");
+  div.innerHTML = `<strong>${comment.persona.name}:</strong> ${comment.text} ${comment.meta.reaction||''}`;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight; // auto-scroll
+}
+
 function autoSimulate(){
   let index=0;
   function postNext(){
     if(index>=POOL.length) return;
     let comment=POOL[index++];
-    window.currentPersona = comment.persona; // used by randomDelay
-    console.log(`[${comment.timestamp.toLocaleTimeString()}] ${comment.persona.name}: ${comment.text}`);
+    window.currentPersona = comment.persona;
+    renderComment(comment);
     setTimeout(postNext, randomDelay());
   }
   postNext();
@@ -298,6 +297,6 @@ function autoSimulate(){
 
 ensurePool();
 setTimeout(()=>autoSimulate(),1200);
-console.log("✅ Ultimate Realism Engine v9.1 PATCHED — FULL TEMPLATE, MULTI-TURN THREADS, ULTRA-REALISTIC");
+console.log("✅ Ultimate Realism Engine v9.1 FULL PATCHED — ALL TEMPLATES, INDEPENDENT COMMENTS, REACTIONS, GITHUB-FRIENDLY");
 
 })();
